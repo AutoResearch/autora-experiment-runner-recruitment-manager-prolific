@@ -1,8 +1,10 @@
 [project]
 # UPDATE THIS BEFORE PUBLISHING
-name = "autora-theorist-template"
-description = "AutoRA Theorist Template"
-authors = [{ name = "Max Mustermann", email = "max@mustermann.de" }]
+name = "autora-runner-recruitment-manager-prolific"
+description = "Functions to manage the recruitment of participants via prolific for an experiment runner in AutoRA"
+authors = [
+    { name = "Kevin Phan", email = "kphan@princeton.edu"},
+    { name = "Younes Strittmatter", email = "younes_strittmatter@brown.edu" }]
 version = "0.1.0"
 
 readme = "README.md"
@@ -12,7 +14,6 @@ requires-python = ">=3.8,<4"
 # ADD NEW DEPENDENCIES HERE
 dependencies = [
     "autora-core",
-    "scikit-learn",
 ]
 
 [project.optional-dependencies]
@@ -22,7 +23,7 @@ dev = [
 
 [project.urls]
 homepage = "http://www.empiricalresearch.ai"
-repository = "https://github.com/AutoResearch/autora-theorist-template"
+repository = "https://github.com/AutoResearch/autora-runner-recruitment-manager-prolific"
 documentation = "https://autoresearch.github.io/autora/"
 
 [build-system]
