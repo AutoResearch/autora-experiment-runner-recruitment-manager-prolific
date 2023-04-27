@@ -1,7 +1,7 @@
 [project]
 # UPDATE THIS BEFORE PUBLISHING
 name = "autora-runner-recruitment-manager-prolific"
-description = "Functions to manage the recruitment of participants via prolific for an experiment runner in AutoRA"
+description = "AutoRA prolific recruitment manager provides functionality to recruite participants via Prolific to setup an experiment runner for AutoRA"
 authors = [
     { name = "Kevin Phan", email = "kphan@princeton.edu"},
     { name = "Younes Strittmatter", email = "younes_strittmatter@brown.edu" }]
