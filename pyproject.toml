@@ -1,11 +1,11 @@
 [project]
 # UPDATE THIS BEFORE PUBLISHING
-name = "autora-runner-recruitment-manager-prolific"
-description = "AutoRA prolific recruitment manager provides functionality to recruite participants via Prolific to setup an experiment runner for AutoRA"
+name = "autora-experiment-runner-recruitment-manager-prolific"
+description = "AutoRA Prolific Recruitment Manager provides functionality to recruite participants via Prolific to setup an experiment runner for AutoRA"
 authors = [
     { name = "Kevin Phan", email = "kphan@princeton.edu"},
     { name = "Younes Strittmatter", email = "younes_strittmatter@brown.edu" }]
-version = "0.1.0"
+dynamic = ["version"]
 
 readme = "README.md"
 license = { text = "MIT License" }
@@ -23,9 +23,11 @@ dev = [
 
 [project.urls]
 homepage = "http://www.empiricalresearch.ai"
-repository = "https://github.com/AutoResearch/autora-runner-recruitment-manager-prolific"
+repository = "https://github.com/AutoResearch/autora-experiment-runner-recruitment-manager-prolific"
 documentation = "https://autoresearch.github.io/autora/"
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]

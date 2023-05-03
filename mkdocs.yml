@@ -1,9 +1,8 @@
 # yaml-language-server: $schema=https://squidfunk.github.io/mkdocs-material/schema.json
 INHERIT: mkdocs/base.yml  # use the shared AutoRA configuration by default
 
-site_name: AutoRA Theorist Template
-repo_url: 'https://github.com/autoresearch/autora-theorist-template'
+site_name: AutoRA Prolific Recruitment Manager
+repo_url: 'https://github.com/autoresearch/autora-experiment-runner-recruitment-manager-prolific'
 
 nav:
 - 'index.md'
-- 'example.ipynb'
