@@ -7,4 +7,3 @@ repo_url: 'https://github.com/autoresearch/autora-theorist-template'
 nav:
 - 'index.md'
 - 'example.ipynb'
-- Code Reference: reference/
