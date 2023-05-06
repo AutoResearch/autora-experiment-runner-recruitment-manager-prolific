@@ -5,4 +5,4 @@ site_name: AutoRA Prolific Recruitment Manager
 repo_url: 'https://github.com/autoresearch/autora-experiment-runner-recruitment-manager-prolific'
 
 nav:
-- 'index.md'
+- Home: 'index.md'
