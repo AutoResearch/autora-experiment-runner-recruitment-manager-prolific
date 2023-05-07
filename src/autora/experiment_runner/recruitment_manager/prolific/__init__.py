@@ -98,6 +98,7 @@ def setup_study(
         description: str,
         external_study_url: str,
         estimated_completion_time: int,
+        prolific_token: str,
         exclude_studies: List[str] = ["default"],
         reward: int = 0,
         prolific_id_option: str = "url_parameters",
@@ -107,7 +108,7 @@ def setup_study(
         eligibility_requirements: List[str] = ["default"],
         device_compatibility: List[str] = ["desktop"],
         peripheral_requirements=None,
-        prolific_token: str = "",
+
 ) -> Any:
     """
     Allows for a study to be drafted given the following parameters.
@@ -117,6 +118,8 @@ def setup_study(
         description (str): Description of study for participants
         external_study_url (str): URL to experiment website
         estimated_completion_time (int): How long the study takes
+        prolific_token: (str): The Api token from your prolific-account
+            (https://app.prolific.co/ under settings)
         exclude_studies (list): Exclude participants that participated in previous studies
             (default is studies with the same name)
         prolific_id_option (ProlificIdOptions): Method of collecting subject ID
@@ -132,7 +135,7 @@ def setup_study(
             Allows specifying additional requirements. Defaults to [] (no other requirements).
 
     Returns:
-        bool: Whether the request was successful or not
+        dictionary: A dictionary with the id and maximum allowed time for the study (or False if something went wrong)
     """
     if eligibility_requirements is None:
         eligibility_requirements = []
@@ -185,7 +188,6 @@ def setup_study(
     if study.status_code >= 400:
         print(study.json())
         return False
-    print(study.json())
     keys_to_include = ["id", "maximum_allowed_time"]
     return dict(
         (key, value) for key, value in study.json().items() if key in keys_to_include
