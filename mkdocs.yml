@@ -6,6 +6,6 @@ repo_url: 'https://github.com/autoresearch/autora-experiment-runner-recruitment-
 
 nav:
 - Home: 'index.md'
-- Quickstart: 'quick-start.md'
+- Quickstart: 'quickstart.md'
 - Examples:
-    - Basic Usage: 'basic-usage.ipynb'
+    - Basic Usage: 'Basic Usage.ipynb'
