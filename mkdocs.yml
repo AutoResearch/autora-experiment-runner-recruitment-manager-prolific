@@ -2,7 +2,7 @@
 INHERIT: mkdocs/base.yml  # use the shared AutoRA configuration by default
 
 site_name: AutoRA Prolific Recruitment Manager
-repo_url: 'https://github.com/autoresearch/autora-experiment-runner-recruitment-manager-prolific'
+repo_url: 'https://github.com/AutoResearch/autora-experiment-runner-recruitment-manager-prolific'
 
 nav:
 - Home: 'index.md'
