@@ -1,22 +1,16 @@
 # Quickstart Guide
 
 You will need:
-`python` >=3.8,<4: [https://www.python.org/downloads/](https://www.python.org/downloads/)
 
-!!! It is recommended to use a python environment manger like virtualenv
+- `python` 3.8 or greater: [https://www.python.org/downloads/](https://www.python.org/downloads/)
 
-Install the package via pip:
+*Prolific Recruitment Manager* is a part of the `autora` package:
 
 ```shell
 pip install "aurora[experiment-runner-recruitment-manager-prolific]"
 ```
 
-## Test
+Check your installation by running:
 ```shell
 python -c "from autora.experiment_runner.recruitment_manager.prolific import setup_study"
 ```
-
-
-## Dependencies
-
-autora-core
