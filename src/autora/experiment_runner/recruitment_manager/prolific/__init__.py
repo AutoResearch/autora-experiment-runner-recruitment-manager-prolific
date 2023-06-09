@@ -242,6 +242,46 @@ def publish_study(study_id: str, prolific_token: str):
     return _update_study_status(study_id, "PUBLISH", prolific_token)
 
 
+def _get_submissions(study_id: str, prolific_token: str):
+    study = requests.get(
+        f"https://api.prolific.co/api/v1/studies/{study_id}/submissions/",
+        headers={"Authorization": f"Token {prolific_token}"},
+
+    )
+    if study.status_code != 200:
+        print(study.json())
+        return False
+    return study.json()['results']
+
+
+def _get_participants_by_status(study_id: str, prolific_token: str, status: str):
+    results = _get_submissions(study_id, prolific_token)
+    return [d['participant_id'] for d in results if d["status"] == status]
+
+
+def get_participants_awaiting_review(study_id: str, prolific_token: str):
+    return _get_participants_by_status(study_id, prolific_token, 'AWAITING REVIEW')
+
+
+def get_participants_returned(study_id: str, prolific_token: str):
+    return _get_participants_by_status(study_id, prolific_token, 'RETURNED')
+
+
+def approve_all(study_id: str, prolific_token: str):
+    awaiting_review = get_participants_awaiting_review(study_id, prolific_token)
+    data = {"study_id": study_id,
+            "participant_ids": awaiting_review
+            }
+    study = requests.post(
+        f"https://api.prolific.co/api/v1/submissions/bulk-approve/",
+        headers={"Authorization": f"Token {prolific_token}"},
+        json=data,
+    )
+    if study.status_code != 400:
+        print(study.json())
+        return False
+    return True
+
 class EligibilityOptions:
     @staticmethod
     def age(minimum: int, maximum: int):
