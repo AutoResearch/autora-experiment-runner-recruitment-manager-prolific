@@ -216,6 +216,7 @@ def _update_study_status(study_id: str, action: str, prolific_token: str):
         json=data,
     )
     if study.status_code != 400:
+        print(study.json())
         return False
     return True
 
