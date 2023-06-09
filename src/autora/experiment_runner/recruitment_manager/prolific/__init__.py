@@ -179,8 +179,7 @@ def setup_study(
     # packages function parameters into dictionary
     data = locals()
 
-    data["status"] = "PAUSED"
-
+    data["completion_code_action"] = "AUTOMATICALLY_APPROVE"
     study = requests.post(
         "https://api.prolific.co/api/v1/studies/",
         headers={"Authorization": f"Token {prolific_token}"},
