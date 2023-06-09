@@ -179,8 +179,7 @@ def setup_study(
     # packages function parameters into dictionary
     data = locals()
 
-    data["status"] = "PAUSED"
-
+    data["completion_code_action"] = "AUTOMATICALLY_APPROVE"
     study = requests.post(
         "https://api.prolific.co/api/v1/studies/",
         headers={"Authorization": f"Token {prolific_token}"},
@@ -202,7 +201,6 @@ def setup_study(
             raise ValueError(f"Error: File '{temp_file}' is not in the correct JSON format.")
         with open(temp_file, 'w') as file:
             json.dump(study_dict, file)
-
     return study_dict
 
 
@@ -213,11 +211,12 @@ def _update_study_status(study_id: str, action: str, prolific_token: str):
     """
     data = {"action": action}
     study = requests.post(
-        f"https://api.prolific.co/api/v1/studies//{study_id}/transition/",
+        f"https://api.prolific.co/api/v1/studies/{study_id}/transition/",
         headers={"Authorization": f"Token {prolific_token}"},
         json=data,
     )
     if study.status_code != 400:
+        print(study.json())
         return False
     return True
 
@@ -235,6 +234,12 @@ def start_study(study_id: str, prolific_token: str):
     Starts/Resumes the study
     """
     return _update_study_status(study_id, "START", prolific_token)
+
+def publish_study(study_id: str, prolific_token: str):
+    """
+    Publish the study
+    """
+    return _update_study_status(study_id, "PUBLISH", prolific_token)
 
 
 class EligibilityOptions:
