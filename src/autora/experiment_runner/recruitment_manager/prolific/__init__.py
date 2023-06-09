@@ -201,7 +201,7 @@ def setup_study(
         if not str.endswith(temp_file, '.json'):
             raise ValueError(f"Error: File '{temp_file}' is not in the correct JSON format.")
         with open(temp_file, 'w') as file:
-            json.dump(study_dict, temp_file)
+            json.dump(study_dict, file)
 
     return study_dict
 
