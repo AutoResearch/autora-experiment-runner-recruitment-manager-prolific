@@ -2,6 +2,7 @@ import random
 import string
 from typing import Any, List
 import requests
+import json
 
 
 def _list_studies(prolific_token: str):
@@ -108,6 +109,7 @@ def setup_study(
         eligibility_requirements: List[str] = ["default"],
         device_compatibility: List[str] = ["desktop"],
         peripheral_requirements=None,
+        temp_file='',
 
 ) -> Any:
     """
@@ -133,6 +135,7 @@ def setup_study(
             Defaults to [] (any device).
         peripheral_requirements (list[PeripheralOptions], optional):
             Allows specifying additional requirements. Defaults to [] (no other requirements).
+        temp_file (str, optional): File to save the study_id and max_allowed_time for restarting later
 
     Returns:
         dictionary: A dictionary with the id and maximum allowed time for the study (or False if something went wrong)
@@ -189,9 +192,18 @@ def setup_study(
         print(study.json())
         return False
     keys_to_include = ["id", "maximum_allowed_time"]
-    return dict(
+    study_dict = dict(
         (key, value) for key, value in study.json().items() if key in keys_to_include
     )
+
+    # save to temp_file
+    if temp_file != '':
+        if not str.endswith(temp_file, '.json'):
+            raise ValueError(f"Error: File '{temp_file}' is not in the correct JSON format.")
+        with open(temp_file, 'w') as file:
+            json.dump(study_dict, temp_file)
+
+    return study_dict
 
 
 def _update_study_status(study_id: str, action: str, prolific_token: str):
