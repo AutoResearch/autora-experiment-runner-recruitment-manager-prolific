@@ -211,7 +211,7 @@ def _update_study_status(study_id: str, action: str, prolific_token: str):
     """
     data = {"action": action}
     study = requests.post(
-        f"https://api.prolific.co/api/v1/studies//{study_id}/transition/",
+        f"https://api.prolific.co/api/v1/studies/{study_id}/transition/",
         headers={"Authorization": f"Token {prolific_token}"},
         json=data,
     )
