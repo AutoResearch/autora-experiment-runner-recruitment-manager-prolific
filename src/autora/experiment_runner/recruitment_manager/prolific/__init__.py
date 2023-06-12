@@ -16,15 +16,32 @@ def _list_studies(prolific_token: str):
     return studies.json()
 
 
-def _get_id_from_name(study_name: str, prolific_token: str):
+def _studies_from_name(study_name: str, prolific_token: str):
     """
-    Returns the id of a study given its name.
+    Returns the ids and status of studies with a given the name.
     """
-    lst = _list_studies(prolific_token)["results"]
-    for s in lst:
-        if s["name"] == study_name:
-            return s["id"]
-    return ""
+    lst = _list_studies(prolific_token)['results']
+    return [{'id': s['id'], 'status': s['status']} for s in lst if s['name'] == study_name]
+
+
+def _is_study_uncompleted(study_name: str, prolific_token: str):
+    """
+    Returns true if there is alread a study with the name that is not completed
+    """
+    lst = _studies_from_name(study_name, prolific_token)
+    incomplete_lst = [s for s in lst if s['status'] != 'COMPLETED']
+    return len(incomplete_lst) > 0
+
+
+# def _get_id_from_name(study_name: str, prolific_token: str):
+#     """
+#     Returns the id of a study given its name.
+#     """
+#     lst = _list_studies(prolific_token)["results"]
+#     for s in lst:
+#         if s["name"] == study_name:
+#             return s["id"]
+#     return ""
 
 
 def _update_study(study_id: str, prolific_token: str, **kwargs) -> bool:
@@ -72,26 +89,26 @@ def check_prolific_status(study_id: str, prolific_token: str) -> dict:
     return dict((key, value) for key, value in study.items() if key in keys_to_include)
 
 
-def increase_participant_count(
-        study_name: str, prolific_token: str, increment: int = 1
-) -> bool:
-    """
-    Increase participants on prolific to collect data for a new cycle
-
-    Args:
-        study_name: name of the study as given in prolific
-        increment: number of participants to recruit for this cycle
-        prolific_token: a prolific api token
-    Returns:
-        Returns True if participants got increased
-    """
-    study_id = _get_id_from_name(study_name, prolific_token)
-    available_places = _retrieve_study(study_id, prolific_token)[
-        "total_available_places"
-    ]
-    return _update_study(
-        study_id, prolific_token, total_available_places=available_places + increment
-    )
+# def increase_participant_count(
+#         study_name: str, prolific_token: str, increment: int = 1
+# ) -> bool:
+#     """
+#     Increase participants on prolific to collect data for a new cycle
+#
+#     Args:
+#         study_name: name of the study as given in prolific
+#         increment: number of participants to recruit for this cycle
+#         prolific_token: a prolific api token
+#     Returns:
+#         Returns True if participants got increased
+#     """
+#     study_id = _get_id_from_name(study_name, prolific_token)
+#     available_places = _retrieve_study(study_id, prolific_token)[
+#         "total_available_places"
+#     ]
+#     return _update_study(
+#         study_id, prolific_token, total_available_places=available_places + increment
+#     )
 
 
 def setup_study(
@@ -157,6 +174,9 @@ def setup_study(
             vision_eligibility,
             language_eligibility,
         ]
+    if _is_study_uncompleted(name, prolific_token):
+        print('ERROR: There is a study with this name that is not completed. Can not proceed.')
+        return
     previous_studies = _list_studies(prolific_token)["results"]
     excludes = [
         {"name": s["name"], "id": s["id"]}
@@ -235,6 +255,7 @@ def start_study(study_id: str, prolific_token: str):
     """
     return _update_study_status(study_id, "START", prolific_token)
 
+
 def publish_study(study_id: str, prolific_token: str):
     """
     Publish the study
@@ -281,6 +302,7 @@ def approve_all(study_id: str, prolific_token: str):
         print(study.json())
         return False
     return True
+
 
 class EligibilityOptions:
     @staticmethod
