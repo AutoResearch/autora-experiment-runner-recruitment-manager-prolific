@@ -303,6 +303,7 @@ def approve_all(study_id: str, prolific_token: str):
         return False
     return True
 
+
 class EligibilityOptions:
     @staticmethod
     def age(minimum: int, maximum: int):
