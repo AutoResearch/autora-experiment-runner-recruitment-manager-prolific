@@ -16,9 +16,14 @@ def _list_studies(prolific_token: str):
     return studies.json()
 
 
-def _get_id_from_name(study_name: str, prolific_token: str):
+def _studies_from_name(study_name: str, prolific_token: str):
     """
-    Returns the id of a study given its name.
+    Returns the ids and status of studies with a given the name.
+    """
+    lst = _list_studies(prolific_token)['results']
+    return [{'id': s['id'], 'status': s['status']} for s in lst if s['name'] == study_name]
+
+def _is_study_uncompleted(study_name: str, prolific_token: str):
     """
     lst = _list_studies(prolific_token)["results"]
     for s in lst:
