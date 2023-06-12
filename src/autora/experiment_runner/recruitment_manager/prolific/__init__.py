@@ -174,6 +174,9 @@ def setup_study(
             vision_eligibility,
             language_eligibility,
         ]
+    if _is_study_uncompleted(name, prolific_token):
+        print('ERROR: There is a study with this name that is not completed. Can not proceed.')
+        return
     previous_studies = _list_studies(prolific_token)["results"]
     excludes = [
         {"name": s["name"], "id": s["id"]}
