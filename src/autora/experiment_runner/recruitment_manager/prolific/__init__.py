@@ -255,6 +255,7 @@ def start_study(study_id: str, prolific_token: str):
     """
     return _update_study_status(study_id, "START", prolific_token)
 
+
 def publish_study(study_id: str, prolific_token: str):
     """
     Publish the study
