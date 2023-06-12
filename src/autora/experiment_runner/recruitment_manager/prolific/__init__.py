@@ -23,13 +23,25 @@ def _studies_from_name(study_name: str, prolific_token: str):
     lst = _list_studies(prolific_token)['results']
     return [{'id': s['id'], 'status': s['status']} for s in lst if s['name'] == study_name]
 
+
 def _is_study_uncompleted(study_name: str, prolific_token: str):
     """
-    lst = _list_studies(prolific_token)["results"]
-    for s in lst:
-        if s["name"] == study_name:
-            return s["id"]
-    return ""
+    Returns true if there is alread a study with the name that is not completed
+    """
+    lst = _studies_from_name(study_name, prolific_token)
+    incomplete_lst = [s for s in lst if s['status'] != 'COMPLETED']
+    return len(incomplete_lst) > 0
+
+
+# def _get_id_from_name(study_name: str, prolific_token: str):
+#     """
+#     Returns the id of a study given its name.
+#     """
+#     lst = _list_studies(prolific_token)["results"]
+#     for s in lst:
+#         if s["name"] == study_name:
+#             return s["id"]
+#     return ""
 
 
 def _update_study(study_id: str, prolific_token: str, **kwargs) -> bool:
