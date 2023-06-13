@@ -110,6 +110,16 @@ def check_prolific_status(study_id: str, prolific_token: str) -> dict:
 #         study_id, prolific_token, total_available_places=available_places + increment
 #     )
 
+def _append_url_variable(url, variable):
+    """
+    appends an url variable if not already in url
+    """
+    if variable not in url:
+        if '?' in url:
+            url += f'&{variable}'
+        else:
+            url += f'?{variable}'
+    return url
 
 def setup_study(
         name: str,
