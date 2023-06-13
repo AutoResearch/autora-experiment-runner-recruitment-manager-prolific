@@ -206,6 +206,8 @@ def setup_study(
     if reward == 0:
         reward = round(20 * estimated_completion_time)  # 12$ per hour / 20¢ per minute
 
+    external_study_url = _append_url_variable(external_study_url, 'PROLIFIC_PID={{%PROLIFIC_PID%}}')
+
     # packages function parameters into dictionary
     data = locals()
 
