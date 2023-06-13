@@ -110,6 +110,16 @@ def check_prolific_status(study_id: str, prolific_token: str) -> dict:
 #         study_id, prolific_token, total_available_places=available_places + increment
 #     )
 
+def _append_url_variable(url, variable):
+    """
+    appends an url variable if not already in url
+    """
+    if variable not in url:
+        if '?' in url:
+            url += f'&{variable}'
+        else:
+            url += f'?{variable}'
+    return url
 
 def setup_study(
         name: str,
@@ -195,6 +205,8 @@ def setup_study(
         )
     if reward == 0:
         reward = round(20 * estimated_completion_time)  # 12$ per hour / 20¢ per minute
+
+    external_study_url = _append_url_variable(external_study_url, 'PROLIFIC_PID={{%PROLIFIC_PID%}}')
 
     # packages function parameters into dictionary
     data = locals()
