@@ -5,22 +5,71 @@ import requests
 import json
 
 
+def __get_request_results(url, headers):
+    # Fetch all submissions using pagination
+    all_submissions = []
+
+    while True:
+        response = requests.get(url, headers=headers)
+        data = response.json()
+
+        if "results" in data:
+            all_submissions.extend(data["results"])
+
+        next_page = data.get("next_page")
+        if next_page:
+            study_url = next_page
+        else:
+            break
+    print(len(all_submissions))
+    return all_submissions
+
+
+def __get_request_results_id(url, headers):
+    page = 1  # Start with the first page
+    results_per_page = 50  # Specify the number of results per page
+
+    # Concatenate all submissions
+    all_submissions = []
+
+    while True:
+        params = {"page": page, "per_page": results_per_page}
+
+        response = requests.get(
+            url,
+            headers=headers,
+            params=params
+        )
+
+        data = response.json()
+
+        # Concatenate the JSON object from the response
+        all_submissions.extend(data.get("results", []))
+
+        # Check if there are no more results
+        if len(data.get("results", [])) < results_per_page:
+            break
+
+        page += 1
+    return all_submissions
+
+
 def _list_studies(prolific_token: str):
     """
     Returns list of all studies on Prolific account.
     """
-    studies = requests.get(
+    studies = __get_request_results(
         "https://api.prolific.co/api/v1/studies/",
-        headers={"Authorization": f"Token {prolific_token}"},
+        {"Authorization": f"Token {prolific_token}"},
     )
-    return studies.json()
+    return studies
 
 
 def _studies_from_name(study_name: str, prolific_token: str):
     """
     Returns the ids and status of studies with a given the name.
     """
-    lst = _list_studies(prolific_token)['results']
+    lst = _list_studies(prolific_token)
     return [{'id': s['id'], 'status': s['status']} for s in lst if s['name'] == study_name]
 
 
@@ -31,17 +80,6 @@ def _is_study_uncompleted(study_name: str, prolific_token: str):
     lst = _studies_from_name(study_name, prolific_token)
     incomplete_lst = [s for s in lst if s['status'] != 'COMPLETED']
     return len(incomplete_lst) > 0
-
-
-# def _get_id_from_name(study_name: str, prolific_token: str):
-#     """
-#     Returns the id of a study given its name.
-#     """
-#     lst = _list_studies(prolific_token)["results"]
-#     for s in lst:
-#         if s["name"] == study_name:
-#             return s["id"]
-#     return ""
 
 
 def _update_study(study_id: str, prolific_token: str, **kwargs) -> bool:
@@ -89,27 +127,6 @@ def check_prolific_status(study_id: str, prolific_token: str) -> dict:
     return dict((key, value) for key, value in study.items() if key in keys_to_include)
 
 
-# def increase_participant_count(
-#         study_name: str, prolific_token: str, increment: int = 1
-# ) -> bool:
-#     """
-#     Increase participants on prolific to collect data for a new cycle
-#
-#     Args:
-#         study_name: name of the study as given in prolific
-#         increment: number of participants to recruit for this cycle
-#         prolific_token: a prolific api token
-#     Returns:
-#         Returns True if participants got increased
-#     """
-#     study_id = _get_id_from_name(study_name, prolific_token)
-#     available_places = _retrieve_study(study_id, prolific_token)[
-#         "total_available_places"
-#     ]
-#     return _update_study(
-#         study_id, prolific_token, total_available_places=available_places + increment
-#     )
-
 def _append_url_variable(url, variable):
     """
     appends an url variable if not already in url
@@ -120,6 +137,7 @@ def _append_url_variable(url, variable):
         else:
             url += f'?{variable}'
     return url
+
 
 def setup_study(
         name: str,
@@ -187,7 +205,7 @@ def setup_study(
     if _is_study_uncompleted(name, prolific_token):
         print('ERROR: There is a study with this name that is not completed. Can not proceed.')
         return
-    previous_studies = _list_studies(prolific_token)["results"]
+    previous_studies = _list_studies(prolific_token)
     excludes = [
         {"name": s["name"], "id": s["id"]}
         for s in previous_studies
@@ -253,7 +271,6 @@ def _update_study_status(study_id: str, action: str, prolific_token: str):
     return True
 
 
-# number_of_submissions
 def pause_study(study_id: str, prolific_token: str):
     """
     Pauses the study
@@ -276,15 +293,10 @@ def publish_study(study_id: str, prolific_token: str):
 
 
 def _get_submissions(study_id: str, prolific_token: str):
-    study = requests.get(
+    study = __get_request_results_id(
         f"https://api.prolific.co/api/v1/studies/{study_id}/submissions/",
-        headers={"Authorization": f"Token {prolific_token}"},
-
-    )
-    if study.status_code != 200:
-        print(study.json())
-        return False
-    return study.json()['results']
+        {"Authorization": f"Token {prolific_token}"})
+    return study
 
 
 def _get_participants_by_status(study_id: str, prolific_token: str, status: str):
@@ -298,6 +310,10 @@ def get_participants_awaiting_review(study_id: str, prolific_token: str):
 
 def get_participants_returned(study_id: str, prolific_token: str):
     return _get_participants_by_status(study_id, prolific_token, 'RETURNED')
+
+
+def get_participants_timed_out(study_id: str, prolific_token: str):
+    return _get_participants_by_status(study_id, prolific_token, 'TIMED OUT')
 
 
 def approve_all(study_id: str, prolific_token: str):
