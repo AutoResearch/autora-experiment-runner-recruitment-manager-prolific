@@ -127,27 +127,6 @@ def check_prolific_status(study_id: str, prolific_token: str) -> dict:
     return dict((key, value) for key, value in study.items() if key in keys_to_include)
 
 
-# def increase_participant_count(
-#         study_name: str, prolific_token: str, increment: int = 1
-# ) -> bool:
-#     """
-#     Increase participants on prolific to collect data for a new cycle
-#
-#     Args:
-#         study_name: name of the study as given in prolific
-#         increment: number of participants to recruit for this cycle
-#         prolific_token: a prolific api token
-#     Returns:
-#         Returns True if participants got increased
-#     """
-#     study_id = _get_id_from_name(study_name, prolific_token)
-#     available_places = _retrieve_study(study_id, prolific_token)[
-#         "total_available_places"
-#     ]
-#     return _update_study(
-#         study_id, prolific_token, total_available_places=available_places + increment
-#     )
-
 def _append_url_variable(url, variable):
     """
     appends an url variable if not already in url
