@@ -138,6 +138,7 @@ def _append_url_variable(url, variable):
             url += f'?{variable}'
     return url
 
+
 def setup_study(
         name: str,
         description: str,
