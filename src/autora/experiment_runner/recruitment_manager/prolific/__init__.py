@@ -82,17 +82,6 @@ def _is_study_uncompleted(study_name: str, prolific_token: str):
     return len(incomplete_lst) > 0
 
 
-# def _get_id_from_name(study_name: str, prolific_token: str):
-#     """
-#     Returns the id of a study given its name.
-#     """
-#     lst = _list_studies(prolific_token)["results"]
-#     for s in lst:
-#         if s["name"] == study_name:
-#             return s["id"]
-#     return ""
-
-
 def _update_study(study_id: str, prolific_token: str, **kwargs) -> bool:
     """
     Updates the parameters of a given study.
