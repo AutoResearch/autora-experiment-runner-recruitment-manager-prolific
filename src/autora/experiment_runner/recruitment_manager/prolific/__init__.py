@@ -58,18 +58,18 @@ def _list_studies(prolific_token: str):
     """
     Returns list of all studies on Prolific account.
     """
-    studies = requests.get(
+    studies = __get_request_results(
         "https://api.prolific.co/api/v1/studies/",
-        headers={"Authorization": f"Token {prolific_token}"},
+        {"Authorization": f"Token {prolific_token}"},
     )
-    return studies.json()
+    return studies
 
 
 def _studies_from_name(study_name: str, prolific_token: str):
     """
     Returns the ids and status of studies with a given the name.
     """
-    lst = _list_studies(prolific_token)['results']
+    lst = _list_studies(prolific_token)
     return [{'id': s['id'], 'status': s['status']} for s in lst if s['name'] == study_name]
 
 
