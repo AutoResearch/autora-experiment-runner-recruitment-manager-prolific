@@ -313,6 +313,10 @@ def get_participants_returned(study_id: str, prolific_token: str):
     return _get_participants_by_status(study_id, prolific_token, 'RETURNED')
 
 
+def get_participants_timed_out(study_id: str, prolific_token: str):
+    return _get_participants_by_status(study_id, prolific_token, 'TIMED OUT')
+
+
 def approve_all(study_id: str, prolific_token: str):
     awaiting_review = get_participants_awaiting_review(study_id, prolific_token)
     data = {"study_id": study_id,
