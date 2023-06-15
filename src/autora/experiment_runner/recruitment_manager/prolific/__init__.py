@@ -5,6 +5,55 @@ import requests
 import json
 
 
+def __get_request_results(url, headers):
+    # Fetch all submissions using pagination
+    all_submissions = []
+
+    while True:
+        response = requests.get(url, headers=headers)
+        data = response.json()
+
+        if "results" in data:
+            all_submissions.extend(data["results"])
+
+        next_page = data.get("next_page")
+        if next_page:
+            study_url = next_page
+        else:
+            break
+    print(len(all_submissions))
+    return all_submissions
+
+
+def __get_request_results_id(url, headers):
+    page = 1  # Start with the first page
+    results_per_page = 50  # Specify the number of results per page
+
+    # Concatenate all submissions
+    all_submissions = []
+
+    while True:
+        params = {"page": page, "per_page": results_per_page}
+
+        response = requests.get(
+            url,
+            headers=headers,
+            params=params
+        )
+
+        data = response.json()
+
+        # Concatenate the JSON object from the response
+        all_submissions.extend(data.get("results", []))
+
+        # Check if there are no more results
+        if len(data.get("results", [])) < results_per_page:
+            break
+
+        page += 1
+    return all_submissions
+
+
 def _list_studies(prolific_token: str):
     """
     Returns list of all studies on Prolific account.
