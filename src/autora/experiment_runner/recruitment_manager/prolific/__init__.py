@@ -271,7 +271,6 @@ def _update_study_status(study_id: str, action: str, prolific_token: str):
     return True
 
 
-# number_of_submissions
 def pause_study(study_id: str, prolific_token: str):
     """
     Pauses the study
