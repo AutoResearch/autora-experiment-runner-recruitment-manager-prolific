@@ -205,7 +205,7 @@ def setup_study(
     if _is_study_uncompleted(name, prolific_token):
         print('ERROR: There is a study with this name that is not completed. Can not proceed.')
         return
-    previous_studies = _list_studies(prolific_token)["results"]
+    previous_studies = _list_studies(prolific_token)
     excludes = [
         {"name": s["name"], "id": s["id"]}
         for s in previous_studies
