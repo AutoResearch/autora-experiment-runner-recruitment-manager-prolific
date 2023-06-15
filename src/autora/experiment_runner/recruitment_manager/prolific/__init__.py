@@ -294,15 +294,10 @@ def publish_study(study_id: str, prolific_token: str):
 
 
 def _get_submissions(study_id: str, prolific_token: str):
-    study = requests.get(
+    study = __get_request_results_id(
         f"https://api.prolific.co/api/v1/studies/{study_id}/submissions/",
-        headers={"Authorization": f"Token {prolific_token}"},
-
-    )
-    if study.status_code != 200:
-        print(study.json())
-        return False
-    return study.json()['results']
+        {"Authorization": f"Token {prolific_token}"})
+    return study
 
 
 def _get_participants_by_status(study_id: str, prolific_token: str, status: str):
