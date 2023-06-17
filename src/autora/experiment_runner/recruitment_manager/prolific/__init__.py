@@ -18,10 +18,9 @@ def __get_request_results(url, headers):
 
         next_page = data.get("next_page")
         if next_page:
-            study_url = next_page
+            url = next_page
         else:
             break
-    print(len(all_submissions))
     return all_submissions
 
 
