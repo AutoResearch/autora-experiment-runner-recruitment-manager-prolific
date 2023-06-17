@@ -18,10 +18,9 @@ def __get_request_results(url, headers):
 
         next_page = data.get("next_page")
         if next_page:
-            study_url = next_page
+            url = next_page
         else:
             break
-    print(len(all_submissions))
     return all_submissions
 
 
@@ -33,24 +32,20 @@ def __get_request_results_id(url, headers):
     all_submissions = []
 
     while True:
-        params = {"page": page, "per_page": results_per_page}
-
         response = requests.get(
             url,
             headers=headers,
-            params=params
+
         )
-
         data = response.json()
-
+        url = data['_links']['next']['href']
         # Concatenate the JSON object from the response
         all_submissions.extend(data.get("results", []))
 
         # Check if there are no more results
-        if len(data.get("results", [])) < results_per_page:
+        if url is None:
             break
 
-        page += 1
     return all_submissions
 
 
