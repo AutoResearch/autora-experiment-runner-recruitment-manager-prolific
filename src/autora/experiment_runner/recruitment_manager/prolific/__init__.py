@@ -41,7 +41,6 @@ def __get_request_results_id(url, headers):
         url = data['_links']['next']['href']
         # Concatenate the JSON object from the response
         all_submissions.extend(data.get("results", []))
-
         # Check if there are no more results
         if url is None:
             break
@@ -198,8 +197,15 @@ def setup_study(
             language_eligibility,
         ]
     if _is_study_uncompleted(name, prolific_token):
-        print('ERROR: There is a study with this name that is not completed. Can not proceed.')
-        return
+        still_uncomplete = True
+        for i in range(10):
+            time.sleep(30)
+            still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token)
+            if not still_uncomplete:
+                break
+        if still_uncomplete:
+            print('ERROR: There is a study with this name that is not completed. Can not proceed.')
+            return
     previous_studies = _list_studies(prolific_token)
     excludes = [
         {"name": s["name"], "id": s["id"]}
@@ -225,12 +231,12 @@ def setup_study(
     data = locals()
 
     data["completion_code_action"] = "AUTOMATICALLY_APPROVE"
+
     study = requests.post(
         "https://api.prolific.co/api/v1/studies/",
         headers={"Authorization": f"Token {prolific_token}"},
         json=data,
     )
-
     # handles request failure
     if study.status_code >= 400:
         print(study.json())
