@@ -77,6 +77,75 @@ def _is_study_uncompleted(study_name: str, prolific_token: str):
     return len(incomplete_lst) > 0
 
 
+def _approve_study_incompleted_submissions(study_name: str, prolific_token: str):
+    """
+    Returns a list of incompleted submissions
+    """
+    lst = _studies_from_name(study_name, prolific_token)
+    incomplete_lst = [s for s in lst if s['status'] != 'COMPLETED']
+    submissions = []
+    for s in incomplete_lst:
+        submissions = __get_request_results(
+            f'https://api.prolific.com/api/v1/submissions/?study={s["id"]}',
+            {"Authorization": f"Token {prolific_token}"},
+        )
+        for sub in submissions:
+            if sub['is_complete'] and sub['status'] == 'AWAITING REVIEW':
+                study = requests.post(
+                    f'https://api.prolific.com/api/v1/submissions/{sub["id"]}/transition/',
+                    headers={"Authorization": f"Token {prolific_token}"},
+                    json={"action": "APPROVE"},
+                )
+
+
+def _get_study_submissions(study_id: str, prolific_token: str) -> dict:
+    study = _retrieve_study(study_id, prolific_token)
+    submissions = __get_request_results(
+        study['_links']['related']['href'],
+        {"Authorization": f"Token {prolific_token}"},
+    )
+    return submissions
+
+
+def _get_submissions_type(study_id: str, prolific_token: str, type: str) -> list:
+    submissions = _get_study_submissions(study_id, prolific_token)
+    return [s['participant_id'] for s in submissions if s['status'] == type]
+
+
+def _get_submissions_returned(study_id: str, prolific_token: str):
+    return _get_submissions_type(study_id, prolific_token, 'RETURNED')
+
+
+def _get_submissions_timed_out(study_id: str, prolific_token: str):
+    return _get_submissions_type(study_id, prolific_token, 'TIMED-OUT')
+
+def get_submissions_incompleted(study_id:str, prolific_token: str):
+    return _get_submissions_returned(study_id, prolific_token) + \
+        _get_submissions_type(study_id, prolific_token, 'TIMED-OUT')
+
+
+def _get_submissions_no_code_not_returned(study_id: str, prolific_token: str):
+    submissions = _get_study_submissions(study_id, prolific_token)
+    return [s['id'] for s in submissions
+            if s['study_code'] == 'NOCODE'
+            and s['status'] != 'RETURNED'
+            and not s['return_requested']]
+
+
+def _request_return(id: str, prolific_token: str):
+    data = {"request_return_reasons": ["No completion code.", "Did not finish study."]}
+    study = requests.post(
+        f"https://api.prolific.com/api/v1/submissions/{id}/request-return/",
+        headers={"Authorization": f"Token {prolific_token}"},
+        json=data,
+    )
+
+def request_return_all(study_id: str, prolific_token: str):
+    submissions = _get_submissions_no_code_not_returned(study_id, prolific_token)
+    for id in submissions:
+        _request_return(id, prolific_token)
+    
+
 def _update_study(study_id: str, prolific_token: str, **kwargs) -> bool:
     """
     Updates the parameters of a given study.
@@ -201,6 +270,9 @@ def setup_study(
         still_uncomplete = True
         for i in range(10):
             time.sleep(30)
+            still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token)
+            if still_uncomplete:
+                _approve_study_incompleted_submissions(name, prolific_token)
             still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token)
             if not still_uncomplete:
                 break
