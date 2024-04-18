@@ -350,14 +350,14 @@ def setup_study(
 
     #_json["completion_code_action"] = "AUTOMATICALLY_APPROVE"
 
-    __save_post(
+    data = __save_post(
         "https://api.prolific.co/api/v1/studies/",
         headers={"Authorization": f"Token {prolific_token}"},
         _json=_json,
     )
     keys_to_include = ["id", "maximum_allowed_time"]
     study_dict = dict(
-        (key, value) for key, value in study.json().items() if key in keys_to_include
+        (key, value) for key, value in data.items() if key in keys_to_include
     )
 
     # save to temp_file
