@@ -164,11 +164,22 @@ def _retrieve_study(study_id: str, prolific_token: str):
     """
     Retrieves information about study given its ID.
     """
-    study = requests.get(
-        f"https://api.prolific.co/api/v1/studies/{study_id}/",
-        headers={"Authorization": f"Token {prolific_token}"},
-    )
-    return study.json()
+    while True:
+        tries = 0
+        while tries < RETRIES:
+            tries += 1
+            try:
+                study = requests.get(
+                    f"https://api.prolific.co/api/v1/studies/{study_id}/",
+                    headers={"Authorization": f"Token {prolific_token}"},
+                )
+                return study.json()
+            except Exception as e:
+                print(
+                    f'Warning: Did not succed to retrieve study.\n'
+                    f'Retrying... Trial: {tries}/{RETRIES}.\n'
+                    f'Error: {e}')
+                time.sleep(20)
 
 
 def check_prolific_status(study_id: str, prolific_token: str) -> dict:
