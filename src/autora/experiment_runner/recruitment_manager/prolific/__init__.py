@@ -5,14 +5,25 @@ from typing import Any, List
 import requests
 import json
 
+RETRIES = 20
 
 def __get_request_results(url, headers):
     # Fetch all submissions using pagination
     all_submissions = []
 
     while True:
-        response = requests.get(url, headers=headers)
-        data = response.json()
+        tries = 0
+        while tries < RETRIES:
+            try:
+                tries += 1
+                response = requests.get(url, headers=headers)
+                data = response.json()
+            except Exception as e:
+                print(
+                    f'Warning: Did not get requested response.\n'
+                    f'Retrying... Trial: {tries}/{RETRIES}.\n'
+                    f'Error: {e}')
+                time.sleep(20)
 
         if "results" in data:
             all_submissions.extend(data["results"])
@@ -33,12 +44,21 @@ def __get_request_results_id(url, headers):
     all_submissions = []
 
     while True:
-        response = requests.get(
-            url,
-            headers=headers,
-
-        )
-        data = response.json()
+        tries = 0
+        while tries < RETRIES:
+            try:
+                tries += 1
+                response = requests.get(
+                    url,
+                    headers=headers,
+                )
+                data = response.json()
+            except Exception as e:
+                print(
+                    f'Warning: Did not get requested response.\n'
+                    f'Retrying... Trial: {tries}/{RETRIES}.\n'
+                    f'Error: {e}')
+                time.sleep(20)
         url = data['_links']['next']['href']
         # Concatenate the JSON object from the response
         all_submissions.extend(data.get("results", []))
@@ -91,11 +111,25 @@ def _approve_study_incompleted_submissions(study_name: str, prolific_token: str)
         )
         for sub in submissions:
             if sub['is_complete'] and sub['status'] == 'AWAITING REVIEW':
-                study = requests.post(
-                    f'https://api.prolific.com/api/v1/submissions/{sub["id"]}/transition/',
-                    headers={"Authorization": f"Token {prolific_token}"},
-                    json={"action": "APPROVE"},
-                )
+                code = 400
+                retries = 0
+                while code >= 400 and retries < RETRIES:
+                    try:
+                        retries += 1
+                        study = requests.post(
+                            f'https://api.prolific.com/api/v1/submissions/{sub["id"]}/transition/',
+                            headers={"Authorization": f"Token {prolific_token}"},
+                            json={"action": "APPROVE"},
+                        )
+                        code = study.status_code
+                    except Exception as e:
+                        print(
+                            f'Warning: Did not get requested response.\n'
+                            f'Retrying... Trial: {tries}/{RETRIES}.\n'
+                            f'Error: {e}')
+                        time.sleep(20)
+                    if code >= 400:
+                        time.sleep(20)
 
 
 def _get_study_submissions(study_id: str, prolific_token: str) -> dict:
@@ -119,7 +153,8 @@ def _get_submissions_returned(study_id: str, prolific_token: str):
 def _get_submissions_timed_out(study_id: str, prolific_token: str):
     return _get_submissions_type(study_id, prolific_token, 'TIMED-OUT')
 
-def get_submissions_incompleted(study_id:str, prolific_token: str):
+
+def get_submissions_incompleted(study_id: str, prolific_token: str):
     return _get_submissions_returned(study_id, prolific_token) + \
         _get_submissions_type(study_id, prolific_token, 'TIMED-OUT')
 
@@ -134,17 +169,32 @@ def _get_submissions_no_code_not_returned(study_id: str, prolific_token: str):
 
 def _request_return(id: str, prolific_token: str):
     data = {"request_return_reasons": ["No completion code.", "Did not finish study."]}
-    study = requests.post(
-        f"https://api.prolific.com/api/v1/submissions/{id}/request-return/",
-        headers={"Authorization": f"Token {prolific_token}"},
-        json=data,
-    )
+    code = 400
+    retries = 0
+    while code >= 400 and retries < RETRIES:
+        try:
+            retries += 1
+            study = requests.post(
+                f"https://api.prolific.com/api/v1/submissions/{id}/request-return/",
+                headers={"Authorization": f"Token {prolific_token}"},
+                json=data,
+            )
+            code = study.status_code
+        except Exception as e:
+            print(
+                f'Warning: Did not get requested response.\n'
+                f'Retrying... Trial: {tries}/{RETRIES}.\n'
+                f'Error: {e}')
+            time.sleep(20)
+        if code >= 400:
+            time.sleep(20)
+
 
 def request_return_all(study_id: str, prolific_token: str):
     submissions = _get_submissions_no_code_not_returned(study_id, prolific_token)
     for id in submissions:
         _request_return(id, prolific_token)
-    
+
 
 def _update_study(study_id: str, prolific_token: str, **kwargs) -> bool:
     """
@@ -152,11 +202,25 @@ def _update_study(study_id: str, prolific_token: str, **kwargs) -> bool:
     If a study is already published, only internal_name
     and total_available_places can be updated.
     """
-    study = requests.patch(
-        f"https://api.prolific.co/api/v1/studies/{study_id}/",
-        headers={"Authorization": f"Token {prolific_token}"},
-        json=kwargs,
-    )
+    code = 400
+    retries = 0
+    while code >= 400 and retries < RETRIES:
+        try:
+            retries += 1
+            study = requests.patch(
+                f"https://api.prolific.co/api/v1/studies/{study_id}/",
+                headers={"Authorization": f"Token {prolific_token}"},
+                json=kwargs,
+            )
+            code = study.status_code
+        except Exception as e:
+            print(
+                f'Warning: Did not get requested response.\n'
+                f'Retrying... Trial: {tries}/{RETRIES}.\n'
+                f'Error: {e}')
+            time.sleep(20)
+        if code >= 400:
+            time.sleep(20)
     return study.status_code < 400
 
 
@@ -315,15 +379,27 @@ def setup_study(
     data = locals()
 
     data["completion_code_action"] = "AUTOMATICALLY_APPROVE"
-
-    study = requests.post(
-        "https://api.prolific.co/api/v1/studies/",
-        headers={"Authorization": f"Token {prolific_token}"},
-        json=data,
-    )
+    code = 400
+    retries = 0
+    while code >= 400 and retries < RETRIES:
+        try:
+            retries += 1
+            study = requests.post(
+                "https://api.prolific.co/api/v1/studies/",
+                headers={"Authorization": f"Token {prolific_token}"},
+                json=data,
+            )
+            code = study.status_code
+        except Exception as e:
+            print(
+                f'Warning: Did not succed to retrieve study.\n'
+                f'Retrying... Trial: {tries}/{RETRIES}.\n'
+                f'Error: {e}')
+            time.sleep(20)
+        if code >= 400:
+            time.sleep(20)
     # handles request failure
     if study.status_code >= 400:
-        print(study.json())
         return False
     keys_to_include = ["id", "maximum_allowed_time"]
     study_dict = dict(
@@ -345,13 +421,26 @@ def _update_study_status(study_id: str, action: str, prolific_token: str):
     the study.
     """
     data = {"action": action}
-    study = requests.post(
-        f"https://api.prolific.co/api/v1/studies/{study_id}/transition/",
-        headers={"Authorization": f"Token {prolific_token}"},
-        json=data,
-    )
+    code = 400
+    retries = 0
+    while code >= 400 and retries < RETRIES:
+        try:
+            retries += 1
+            study = requests.post(
+                f"https://api.prolific.co/api/v1/studies/{study_id}/transition/",
+                headers={"Authorization": f"Token {prolific_token}"},
+                json=data,
+            )
+            code = study.status_code
+        except Exception as e:
+            print(
+                f'Warning: Did not succed to retrieve study.\n'
+                f'Retrying... Trial: {tries}/{RETRIES}.\n'
+                f'Error: {e}')
+            time.sleep(20)
+        if code >= 400:
+            time.sleep(20)
     if study.status_code != 400:
-        print(study.json())
         return False
     return True
 
@@ -406,11 +495,25 @@ def approve_all(study_id: str, prolific_token: str):
     data = {"study_id": study_id,
             "participant_ids": awaiting_review
             }
-    study = requests.post(
-        f"https://api.prolific.co/api/v1/submissions/bulk-approve/",
-        headers={"Authorization": f"Token {prolific_token}"},
-        json=data,
-    )
+    code = 400
+    retries = 0
+    while code >= 400 and retries < RETRIES:
+        try:
+            retries += 1
+            study = requests.post(
+                f"https://api.prolific.co/api/v1/submissions/bulk-approve/",
+                headers={"Authorization": f"Token {prolific_token}"},
+                json=data,
+            )
+            code = study.status_code
+        except Exception as e:
+            print(
+                f'Warning: Did not succed to retrieve study.\n'
+                f'Retrying... Trial: {tries}/{RETRIES}.\n'
+                f'Error: {e}')
+            time.sleep(20)
+        if code >= 400:
+            time.sleep(20)
     if study.status_code != 400:
         print(study.json())
         return False
