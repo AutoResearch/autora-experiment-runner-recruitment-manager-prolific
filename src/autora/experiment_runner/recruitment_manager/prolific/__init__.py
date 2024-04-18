@@ -26,7 +26,7 @@ def __save_post(url, headers, _json):
         tries += 1
         response = requests.post(url, headers=headers, json=_json)
         if response.status_code < 400:
-            return True
+            return response.json()
         print(f'Warning in posting to prolific: {response.status_code}. Retry: {tries}/{RETRIES}')
         time.sleep(20)
     raise Exception(f'Error in posting to prolific: {response.status_code}')
@@ -38,7 +38,7 @@ def __save_patch(url, headers, _json):
         tries += 1
         response = requests.patch(url, headers=headers, json=_json)
         if response.status_code < 400:
-            return True
+            return response.json()
         print(f'Warning in patching to prolific: {response.status_code}. Retry: {tries}/{RETRIES}')
         time.sleep(20)
     raise Exception(f'Error in patching to prolific: {response.status_code}')
@@ -184,11 +184,18 @@ def _update_study(study_id: str, prolific_token: str, **kwargs) -> bool:
     If a study is already published, only internal_name
     and total_available_places can be updated.
     """
-    return __save_patch(
-        f"https://api.prolific.co/api/v1/studies/{study_id}/",
-        headers={"Authorization": f"Token {prolific_token}"},
-        _json=kwargs,
-    )
+    tries = 0
+    while tries < RETRIES:
+        tries += 1
+        response = requests.patch(
+            f"https://api.prolific.co/api/v1/studies/{study_id}/",
+            headers={"Authorization": f"Token {prolific_token}"},
+            json=kwargs)
+        if response.status_code < 400:
+            return response.json()
+        print(f'Warning in patching to prolific: {response.status_code}. Retry: {tries}/{RETRIES}')
+        time.sleep(20)
+    raise Exception(f'Error in patching to prolific: {response.status_code}')
 
 
 def _retrieve_study(study_id: str, prolific_token: str):
@@ -346,9 +353,9 @@ def setup_study(
         'completion_code_action': "AUTOMATICALLY_APPROVE"
     }
     # packages function parameters into dictionary
-    #_json = locals()
+    # _json = locals()
 
-    #_json["completion_code_action"] = "AUTOMATICALLY_APPROVE"
+    # _json["completion_code_action"] = "AUTOMATICALLY_APPROVE"
 
     data = __save_post(
         "https://api.prolific.co/api/v1/studies/",
