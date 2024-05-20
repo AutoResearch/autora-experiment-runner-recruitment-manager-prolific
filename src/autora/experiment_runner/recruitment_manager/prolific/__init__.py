@@ -187,7 +187,7 @@ def request_return_all(study_id: str, prolific_token: str):
 def approve_all_no_code(study_id: str, prolific_token: str):
     subissions = _get_submissions_no_code_not_returned(study_id, prolific_token)
     for id in submissions:
-        _approve(id, prolif)
+        _approve(id, prolific_token)
 
 
 def _update_study(study_id: str, prolific_token: str, **kwargs) -> bool:
@@ -446,15 +446,9 @@ def get_participants_timed_out(study_id: str, prolific_token: str):
 
 
 def approve_all(study_id: str, prolific_token: str):
-    awaiting_review = get_participants_awaiting_review(study_id, prolific_token)
-    data = {"study_id": study_id,
-            "participant_ids": awaiting_review
-            }
-    return __save_postt(
-        f"https://api.prolific.co/api/v1/submissions/bulk-approve/",
-        headers={"Authorization": f"Token {prolific_token}"},
-        _json=data,
-    )
+    submissions = get_participants_awaiting_review(study_id, prolific_token)
+    for id in submissions:
+        _approve(id, prolific_token)
 
 
 class EligibilityOptions:
