@@ -45,7 +45,6 @@ def __save_patch(url, headers, _json):
 
 
 def __get_request_results(url, headers):
-    # Fetch all submissions using pagination
     all_submissions = []
     while True:
         data = __save_get(url, headers)
@@ -70,9 +69,7 @@ def __get_request_results_id(url, headers):
     while True:
         data = __save_get(url, headers)
         url = data['_links']['next']['href']
-        # Concatenate the JSON object from the response
         all_submissions.extend(data.get("results", []))
-        # Check if there are no more results
         if url is None:
             break
 
@@ -171,18 +168,20 @@ def _request_return(id: str, prolific_token: str):
         _json=data,
     )
 
+
 def _approve(id: str, prolific_token: str):
     __save_post(
-                    f'https://api.prolific.com/api/v1/submissions/{id}/transition/',
-                    headers={"Authorization": f"Token {prolific_token}"},
-                    _json={"action": "APPROVE"}
-                )
+        f'https://api.prolific.com/api/v1/submissions/{id}/transition/',
+        headers={"Authorization": f"Token {prolific_token}"},
+        _json={"action": "APPROVE"},
+    )
 
 
 def request_return_all(study_id: str, prolific_token: str):
     submissions = _get_submissions_no_code_not_returned(study_id, prolific_token)
     for id in submissions:
         _request_return(id, prolific_token)
+
 
 def approve_all_no_code(study_id: str, prolific_token: str):
     submissions = _get_submissions_no_code_not_returned(study_id, prolific_token)
@@ -433,8 +432,16 @@ def _get_participants_by_status(study_id: str, prolific_token: str, status: str)
     return [d['participant_id'] for d in results if d["status"] == status]
 
 
+def _get_submissions_by_status(study_id: str, prolific_token: str, status: str):
+    results = _get_submissions(study_id, prolific_token)
+    return [d['id'] for d in results if d["status"] == status]
+
+
 def get_participants_awaiting_review(study_id: str, prolific_token: str):
     return _get_participants_by_status(study_id, prolific_token, 'AWAITING REVIEW')
+
+def get_submissions_awaiting_review(study_id: str, prolific_token: str):
+    return _get_submissions_by_status(study_id, prolific_token, 'AWAITING REVIEW')
 
 
 def get_participants_returned(study_id: str, prolific_token: str):
@@ -446,7 +453,7 @@ def get_participants_timed_out(study_id: str, prolific_token: str):
 
 
 def approve_all(study_id: str, prolific_token: str):
-    submissions = get_participants_awaiting_review(study_id, prolific_token)
+    submissions = get_submissions_awaiting_review(study_id, prolific_token)
     for id in submissions:
         _approve(id, prolific_token)
 
