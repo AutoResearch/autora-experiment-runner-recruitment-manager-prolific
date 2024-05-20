@@ -173,7 +173,7 @@ def _request_return(id: str, prolific_token: str):
 
 def _approve(id: str, prolific_token: str):
     __save_post(
-                    f'https://api.prolific.com/api/v1/submissions/{sub["id"]}/transition/',
+                    f'https://api.prolific.com/api/v1/submissions/{id}/transition/',
                     headers={"Authorization": f"Token {prolific_token}"},
                     _json={"action": "APPROVE"}
                 )
