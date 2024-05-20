@@ -185,7 +185,7 @@ def request_return_all(study_id: str, prolific_token: str):
         _request_return(id, prolific_token)
 
 def approve_all_no_code(study_id: str, prolific_token: str):
-    subissions = _get_submissions_no_code_not_returned(study_id, prolific_token)
+    submissions = _get_submissions_no_code_not_returned(study_id, prolific_token)
     for id in submissions:
         _approve(id, prolific_token)
 
