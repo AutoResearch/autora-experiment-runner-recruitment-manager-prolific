@@ -171,11 +171,23 @@ def _request_return(id: str, prolific_token: str):
         _json=data,
     )
 
+def _approve(id: str, prolific_token: str):
+    __save_post(
+                    f'https://api.prolific.com/api/v1/submissions/{sub["id"]}/transition/',
+                    headers={"Authorization": f"Token {prolific_token}"},
+                    _json={"action": "APPROVE"}
+                )
+
 
 def request_return_all(study_id: str, prolific_token: str):
     submissions = _get_submissions_no_code_not_returned(study_id, prolific_token)
     for id in submissions:
         _request_return(id, prolific_token)
+
+def approve_all_no_code(study_id: str, prolific_token: str):
+    subissions = _get_submissions_no_code_not_returned(study_id, prolific_token)
+    for id in submissions:
+        _approve(id, prolif)
 
 
 def _update_study(study_id: str, prolific_token: str, **kwargs) -> bool:
