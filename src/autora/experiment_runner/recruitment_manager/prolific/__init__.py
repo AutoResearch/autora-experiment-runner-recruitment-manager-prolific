@@ -80,8 +80,8 @@ def _list_studies(prolific_token: str):
     """
     Returns list of all studies on Prolific account.
     """
-    studies = __get_request_results(
-        "https://api.prolific.co/api/v1/studies/",
+    studies = __get_request_results_id(
+        "https://api.prolific.com/api/v1/studies/",
         {"Authorization": f"Token {prolific_token}"},
     )
     return studies
@@ -127,7 +127,7 @@ def _approve_study_incompleted_submissions(study_name: str, prolific_token: str)
 
 def _get_study_submissions(study_id: str, prolific_token: str) -> dict:
     study = _retrieve_study(study_id, prolific_token)
-    submissions = __get_request_results(
+    submissions = __get_request_results_id(
         study['_links']['related']['href'],
         {"Authorization": f"Token {prolific_token}"},
     )
@@ -161,6 +161,7 @@ def _get_submissions_no_code_not_returned(study_id: str, prolific_token: str):
 
 
 def _request_return(id: str, prolific_token: str):
+    print('request return')
     data = {"request_return_reasons": ["No completion code.", "Did not finish study."]}
     __save_post(
         f"https://api.prolific.com/api/v1/submissions/{id}/request-return/",
@@ -199,7 +200,7 @@ def _update_study(study_id: str, prolific_token: str, **kwargs) -> bool:
     while tries < RETRIES:
         tries += 1
         response = requests.patch(
-            f"https://api.prolific.co/api/v1/studies/{study_id}/",
+            f"https://api.prolific.com/api/v1/studies/{study_id}/",
             headers={"Authorization": f"Token {prolific_token}"},
             json=kwargs)
         if response.status_code < 400:
@@ -214,7 +215,7 @@ def _retrieve_study(study_id: str, prolific_token: str):
     Retrieves information about study given its ID.
     """
     return __save_get(
-        f"https://api.prolific.co/api/v1/studies/{study_id}/",
+        f"https://api.prolific.com/api/v1/studies/{study_id}/",
         headers={"Authorization": f"Token {prolific_token}"},
     )
 
@@ -236,7 +237,11 @@ def check_prolific_status(study_id: str, prolific_token: str) -> dict:
         "status",
         "number_of_submissions",
     ]
-    return dict((key, value) for key, value in study.items() if key in keys_to_include)
+    res = dict((key, value) for key, value in study.items() if key in keys_to_include)
+    s_ids_awaiting_review = _get_submissions_by_status(study_id, prolific_token, 'AWAITING REVIEW')
+    s_ids_approved = _get_submissions_by_status(study_id, prolific_token, 'APPROVED')
+    res['number_of_submissions_finished'] = len(s_ids_approved) + len(s_ids_awaiting_review)
+    return res
 
 
 def _append_url_variable(url, variable):
@@ -278,7 +283,7 @@ def setup_study(
         external_study_url (str): URL to experiment website
         estimated_completion_time (int): How long the study takes
         prolific_token: (str): The Api token from your prolific-account
-            (https://app.prolific.co/ under settings)
+            (https://app.prolific.com under settings)
         exclude_studies (list): Exclude participants that participated in previous studies
             (default is studies with the same name)
         prolific_id_option (ProlificIdOptions): Method of collecting subject ID
@@ -297,6 +302,7 @@ def setup_study(
     Returns:
         dictionary: A dictionary with the id and maximum allowed time for the study (or False if something went wrong)
     """
+    print('setting up study on prolific')
     if eligibility_requirements is None:
         eligibility_requirements = []
     if exclude_studies is None:
@@ -369,7 +375,7 @@ def setup_study(
     # _json["completion_code_action"] = "AUTOMATICALLY_APPROVE"
 
     data = __save_post(
-        "https://api.prolific.co/api/v1/studies/",
+        "https://api.prolific.com/api/v1/studies/",
         headers={"Authorization": f"Token {prolific_token}"},
         _json=_json,
     )
@@ -393,7 +399,7 @@ def _update_study_status(study_id: str, action: str, prolific_token: str):
     the study.
     """
     return __save_post(
-        f"https://api.prolific.co/api/v1/studies/{study_id}/transition/",
+        f"https://api.prolific.com/api/v1/studies/{study_id}/transition/",
         headers={"Authorization": f"Token {prolific_token}"},
         _json={"action": action},
     )
@@ -422,7 +428,7 @@ def publish_study(study_id: str, prolific_token: str):
 
 def _get_submissions(study_id: str, prolific_token: str):
     study = __get_request_results_id(
-        f"https://api.prolific.co/api/v1/studies/{study_id}/submissions/",
+        f"https://api.prolific.com/api/v1/studies/{study_id}/submissions/",
         {"Authorization": f"Token {prolific_token}"})
     return study
 
