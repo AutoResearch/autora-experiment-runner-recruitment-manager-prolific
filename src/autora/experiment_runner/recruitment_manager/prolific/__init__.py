@@ -272,6 +272,7 @@ def setup_study(
         device_compatibility: List[str] = ["desktop"],
         peripheral_requirements=None,
         temp_file='',
+        check_prev=True,
 
 ) -> Any:
     """
@@ -320,25 +321,28 @@ def setup_study(
             vision_eligibility,
             language_eligibility,
         ]
-    if _is_study_uncompleted(name, prolific_token):
-        still_uncomplete = True
-        for i in range(10):
-            time.sleep(30)
-            still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token)
+    if check_prev:
+        if _is_study_uncompleted(name, prolific_token):
+            still_uncomplete = True
+            for i in range(10):
+                time.sleep(30)
+                still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token)
+                if still_uncomplete:
+                    _approve_study_incompleted_submissions(name, prolific_token)
+                still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token)
+                if not still_uncomplete:
+                    break
             if still_uncomplete:
-                _approve_study_incompleted_submissions(name, prolific_token)
-            still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token)
-            if not still_uncomplete:
-                break
-        if still_uncomplete:
-            print('ERROR: There is a study with this name that is not completed. Can not proceed.')
-            return
-    previous_studies = _list_studies(prolific_token)
-    excludes = [
-        {"name": s["name"], "id": s["id"]}
-        for s in previous_studies
-        if s["name"] in exclude_studies
-    ]
+                print('ERROR: There is a study with this name that is not completed. Can not proceed.')
+                return
+        previous_studies = _list_studies(prolific_token)
+        excludes = [
+            {"name": s["name"], "id": s["id"]}
+            for s in previous_studies
+            if s["name"] in exclude_studies
+        ]
+    else:
+        excludes = exclude_studies
     if excludes is not []:
         eligibility_requirements += [EligibilityOptions.previous_studies(excludes)]
     if device_compatibility is None:
