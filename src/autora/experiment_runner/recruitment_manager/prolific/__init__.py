@@ -416,6 +416,13 @@ def pause_study(study_id: str, prolific_token: str):
     return _update_study_status(study_id, "PAUSE", prolific_token)
 
 
+def stop_study(study_id: str, prolific_token: str):
+    """
+    Pauses the study
+    """
+    return _update_study_status(study_id, "STOP", prolific_token)
+
+
 def start_study(study_id: str, prolific_token: str):
     """
     Starts/Resumes the study
