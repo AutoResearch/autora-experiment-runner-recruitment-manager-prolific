@@ -6,6 +6,7 @@ import requests
 import json
 
 RETRIES = 20
+REQUEST_TIMEOUT_SECONDS = 20
 DEFAULT_COUNTRY_FILTER_ID = "current-country-of-residence"
 DEFAULT_COUNTRY_US_VALUE = "1"
 
@@ -14,7 +15,15 @@ def __save_get(url, headers):
     tries = 0
     while tries < RETRIES:
         tries += 1
-        response = requests.get(url, headers=headers)
+        try:
+            response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
+        except requests.RequestException as exc:
+            print(
+                f"Warning in geting from prolific: request error ({exc}). "
+                f"Retry: {tries}/{RETRIES}"
+            )
+            time.sleep(20)
+            continue
         if response.status_code < 400:
             return response.json()
         print(f'Warning in geting from prolific: {response.status_code}. Retry: {tries}/{RETRIES}')
@@ -26,7 +35,20 @@ def __save_post(url, headers, _json):
     tries = 0
     while tries < RETRIES:
         tries += 1
-        response = requests.post(url, headers=headers, json=_json)
+        try:
+            response = requests.post(
+                url,
+                headers=headers,
+                json=_json,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
+        except requests.RequestException as exc:
+            print(
+                f"Warning in posting to prolific: request error ({exc}). "
+                f"Retry: {tries}/{RETRIES}"
+            )
+            time.sleep(20)
+            continue
         if response.status_code < 400:
             return response.json()
         detail = (response.text or "")[:2000]
@@ -42,7 +64,20 @@ def __save_patch(url, headers, _json):
     tries = 0
     while tries < RETRIES:
         tries += 1
-        response = requests.patch(url, headers=headers, json=_json)
+        try:
+            response = requests.patch(
+                url,
+                headers=headers,
+                json=_json,
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            )
+        except requests.RequestException as exc:
+            print(
+                f"Warning in patching to prolific: request error ({exc}). "
+                f"Retry: {tries}/{RETRIES}"
+            )
+            time.sleep(20)
+            continue
         if response.status_code < 400:
             return response.json()
         print(f'Warning in patching to prolific: {response.status_code}. Retry: {tries}/{RETRIES}')
@@ -321,6 +356,10 @@ def setup_study(
         if _is_study_uncompleted(name, prolific_token):
             still_uncomplete = True
             for i in range(10):
+                print(
+                    f"Waiting for previous '{name}' study to complete/close "
+                    f"({i + 1}/10)..."
+                )
                 time.sleep(30)
                 still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token)
                 if still_uncomplete:
