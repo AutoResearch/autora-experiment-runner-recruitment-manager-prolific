@@ -1,7 +1,7 @@
 from autora.experiment_runner.recruitment_manager import prolific as prolific_api
 
 
-def test_start_study_uses_resume_transition(monkeypatch):
+def test_start_study_uses_start_transition(monkeypatch):
     captured = {}
 
     def fake_update(study_id, action, token):
@@ -15,7 +15,7 @@ def test_start_study_uses_resume_transition(monkeypatch):
 
     assert out == {"ok": True}
     assert captured["study_id"] == "study-123"
-    assert captured["action"] == "RESUME"
+    assert captured["action"] == "START"
     assert captured["token"] == "TOKEN"
 
 
