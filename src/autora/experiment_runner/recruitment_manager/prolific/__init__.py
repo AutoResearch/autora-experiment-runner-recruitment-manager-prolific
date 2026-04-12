@@ -27,9 +27,13 @@ def __save_post(url, headers, _json):
         response = requests.post(url, headers=headers, json=_json)
         if response.status_code < 400:
             return response.json()
-        print(f'Warning in posting to prolific: {response.status_code}. Retry: {tries}/{RETRIES}')
+        detail = (response.text or "")[:2000]
+        print(
+            f"Warning in posting to prolific: {response.status_code}. "
+            f"{detail} Retry: {tries}/{RETRIES}"
+        )
         time.sleep(20)
-    raise Exception(f'Error in posting to prolific: {response.status_code}')
+    raise Exception(f"Error in posting to prolific: {response.status_code}")
 
 
 def __save_patch(url, headers, _json):
@@ -304,23 +308,13 @@ def setup_study(
         dictionary: A dictionary with the id and maximum allowed time for the study (or False if something went wrong)
     """
     print('setting up study on prolific')
+    use_default_eligibility = eligibility_requirements == ["default"]
     if eligibility_requirements is None:
         eligibility_requirements = []
     if exclude_studies is None:
         exclude_studies = []
     if exclude_studies == ["default"]:
         exclude_studies = [name]
-    if eligibility_requirements == ["default"]:
-        age_eligibility = EligibilityOptions.age(18, 55)
-        nationality_eligibility = EligibilityOptions.nationality("United States", 1)
-        vision_eligibility = EligibilityOptions.vision()
-        language_eligibility = EligibilityOptions.first_language("English")
-        eligibility_requirements = [
-            age_eligibility,
-            nationality_eligibility,
-            vision_eligibility,
-            language_eligibility,
-        ]
     if check_prev:
         if _is_study_uncompleted(name, prolific_token):
             still_uncomplete = True
@@ -343,8 +337,6 @@ def setup_study(
         ]
     else:
         excludes = exclude_studies
-    if excludes is not []:
-        eligibility_requirements += [EligibilityOptions.previous_studies(excludes)]
     if device_compatibility is None:
         device_compatibility = []
     if peripheral_requirements is None:
@@ -358,25 +350,55 @@ def setup_study(
 
     external_study_url = _append_url_variable(external_study_url, 'PROLIFIC_PID={{%PROLIFIC_PID%}}')
 
-    _json = {
-        'name': name,
-        'description': description,
-        'external_study_url': external_study_url,
-        'estimated_completion_time': estimated_completion_time,
-        'reward': reward,
-        'prolific_id_option': prolific_id_option,
-        'completion_code': completion_code,
-        'completion_option': completion_option,
-        'total_available_places': total_available_places,
-        'eligibility_requirements': eligibility_requirements,
-        'device_compatibility': device_compatibility,
-        'peripheral_requirements': peripheral_requirements,
-        'completion_code_action': "AUTOMATICALLY_APPROVE"
-    }
-    # packages function parameters into dictionary
-    # _json = locals()
+    # Prolific API v1 expects `filters` and `completion_codes` (not legacy eligibility / completion fields).
+    filters: list[dict[str, Any]] = []
+    if use_default_eligibility:
+        filters.append(
+            {"filter_id": "age", "selected_range": {"lower": 18, "upper": 55}}
+        )
+    elif eligibility_requirements:
+        print(
+            "Warning: Custom eligibility_requirements use a deprecated schema; "
+            "applying age 18–55 only. Extend `setup_study` to pass modern `filters` if needed."
+        )
+        filters.append(
+            {"filter_id": "age", "selected_range": {"lower": 18, "upper": 55}}
+        )
 
-    # _json["completion_code_action"] = "AUTOMATICALLY_APPROVE"
+    blocklist_ids: list[str] = []
+    if excludes:
+        for ex in excludes:
+            if isinstance(ex, dict) and "id" in ex:
+                blocklist_ids.append(str(ex["id"]))
+            elif isinstance(ex, str):
+                blocklist_ids.append(ex)
+    if blocklist_ids:
+        filters.append(
+            {
+                "filter_id": "previous_studies_blocklist",
+                "selected_values": blocklist_ids,
+            }
+        )
+
+    _json = {
+        "name": name,
+        "description": description,
+        "external_study_url": external_study_url,
+        "estimated_completion_time": estimated_completion_time,
+        "reward": reward,
+        "prolific_id_option": prolific_id_option,
+        "total_available_places": total_available_places,
+        "device_compatibility": device_compatibility,
+        "peripheral_requirements": peripheral_requirements,
+        "filters": filters,
+        "completion_codes": [
+            {
+                "code": completion_code,
+                "code_type": "COMPLETED",
+                "actions": [{"action": "AUTOMATICALLY_APPROVE"}],
+            }
+        ],
+    }
 
     data = __save_post(
         "https://api.prolific.com/api/v1/studies/",
