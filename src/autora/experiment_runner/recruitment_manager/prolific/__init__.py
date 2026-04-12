@@ -6,6 +6,8 @@ import requests
 import json
 
 RETRIES = 20
+DEFAULT_COUNTRY_FILTER_ID = "current-country-of-residence"
+DEFAULT_COUNTRY_US_VALUE = "1"
 
 
 def __save_get(url, headers):
@@ -356,13 +358,26 @@ def setup_study(
         filters.append(
             {"filter_id": "age", "selected_range": {"lower": 18, "upper": 55}}
         )
+        filters.append(
+            {
+                "filter_id": DEFAULT_COUNTRY_FILTER_ID,
+                "selected_values": [DEFAULT_COUNTRY_US_VALUE],
+            }
+        )
     elif eligibility_requirements:
         print(
             "Warning: Custom eligibility_requirements use a deprecated schema; "
-            "applying age 18–55 only. Extend `setup_study` to pass modern `filters` if needed."
+            "applying defaults (age 18-55, US residence) only. "
+            "Extend `setup_study` to pass modern `filters` if needed."
         )
         filters.append(
             {"filter_id": "age", "selected_range": {"lower": 18, "upper": 55}}
+        )
+        filters.append(
+            {
+                "filter_id": DEFAULT_COUNTRY_FILTER_ID,
+                "selected_values": [DEFAULT_COUNTRY_US_VALUE],
+            }
         )
 
     blocklist_ids: list[str] = []

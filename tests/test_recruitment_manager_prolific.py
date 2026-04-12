@@ -38,3 +38,7 @@ def test_setup_study_uses_new_prolific_schema(monkeypatch):
     assert payload["completion_codes"][0]["code"] == "ABC123"
     assert payload["completion_codes"][0]["actions"][0]["action"] == "AUTOMATICALLY_APPROVE"
     assert any(f["filter_id"] == "age" for f in payload["filters"])
+    assert any(
+        f["filter_id"] == "current-country-of-residence" and f["selected_values"] == ["1"]
+        for f in payload["filters"]
+    )
