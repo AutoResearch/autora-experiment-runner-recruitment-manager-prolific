@@ -12,12 +12,18 @@ You will need:
 Install the package via pip:
 
 ```shell
-pip install "aurora[experiment-runner-recruitment-manager-prolific]"
+pip install -U "autora-experiment-runner-recruitment-manager-prolific @ git+https://github.com/AutoResearch/autora-experiment-runner-recruitment-manager-prolific.git@main"
 ```
 
 ## Test
 ```shell
 python -c "from autora.experiment_runner.recruitment_manager.prolific import setup_study"
+```
+
+Mocked payload test (no real Prolific calls):
+
+```shell
+pytest tests/test_recruitment_manager_prolific.py -q
 ```
 
 
