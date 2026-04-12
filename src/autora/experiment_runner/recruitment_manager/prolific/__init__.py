@@ -1,6 +1,7 @@
 import time
 import random
 import string
+from datetime import datetime
 from typing import Any, List
 import requests
 import json
@@ -9,6 +10,11 @@ RETRIES = 20
 REQUEST_TIMEOUT_SECONDS = 20
 DEFAULT_COUNTRY_FILTER_ID = "current-country-of-residence"
 DEFAULT_COUNTRY_US_VALUE = "1"
+
+
+def _log(message: str):
+    ts = datetime.now().strftime("%H:%M:%S")
+    print(f"[prolific_runner {ts}] {message}", flush=True)
 
 
 def __save_get(url, headers):
@@ -344,7 +350,7 @@ def setup_study(
     Returns:
         dictionary: A dictionary with the id and maximum allowed time for the study (or False if something went wrong)
     """
-    print('setting up study on prolific')
+    _log("Setting up study on Prolific")
     use_default_eligibility = eligibility_requirements == ["default"]
     if eligibility_requirements is None:
         eligibility_requirements = []
@@ -353,12 +359,12 @@ def setup_study(
     if exclude_studies == ["default"]:
         exclude_studies = [name]
     if check_prev:
+        _log("Checking for existing uncompleted studies with same name")
         if _is_study_uncompleted(name, prolific_token):
             still_uncomplete = True
             for i in range(10):
-                print(
-                    f"Waiting for previous '{name}' study to complete/close "
-                    f"({i + 1}/10)..."
+                _log(
+                    f"Waiting for previous '{name}' study to complete/close ({i + 1}/10)"
                 )
                 time.sleep(30)
                 still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token)
@@ -368,7 +374,7 @@ def setup_study(
                 if not still_uncomplete:
                     break
             if still_uncomplete:
-                print('ERROR: There is a study with this name that is not completed. Can not proceed.')
+                _log('ERROR: There is a study with this name that is not completed. Can not proceed.')
                 return
         previous_studies = _list_studies(prolific_token)
         excludes = [
@@ -459,6 +465,7 @@ def setup_study(
         headers={"Authorization": f"Token {prolific_token}"},
         _json=_json,
     )
+    _log("Prolific study draft created")
     keys_to_include = ["id", "maximum_allowed_time"]
     study_dict = dict(
         (key, value) for key, value in data.items() if key in keys_to_include
@@ -489,6 +496,7 @@ def pause_study(study_id: str, prolific_token: str):
     """
     Pauses the study
     """
+    _log(f"Sending PAUSE transition for study {study_id}")
     return _update_study_status(study_id, "PAUSE", prolific_token)
 
 
@@ -496,6 +504,7 @@ def stop_study(study_id: str, prolific_token: str):
     """
     Pauses the study
     """
+    _log(f"Sending STOP transition for study {study_id}")
     return _update_study_status(study_id, "STOP", prolific_token)
 
 
@@ -503,6 +512,7 @@ def start_study(study_id: str, prolific_token: str):
     """
     Starts/Resumes the study
     """
+    _log(f"Sending RESUME transition for study {study_id}")
     return _update_study_status(study_id, "RESUME", prolific_token)
 
 
@@ -510,6 +520,7 @@ def publish_study(study_id: str, prolific_token: str):
     """
     Publish the study
     """
+    _log(f"Sending PUBLISH transition for study {study_id}")
     return _update_study_status(study_id, "PUBLISH", prolific_token)
 
 
