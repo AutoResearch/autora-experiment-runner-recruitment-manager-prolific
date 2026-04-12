@@ -1,6 +1,24 @@
 from autora.experiment_runner.recruitment_manager import prolific as prolific_api
 
 
+def test_start_study_uses_resume_transition(monkeypatch):
+    captured = {}
+
+    def fake_update(study_id, action, token):
+        captured["study_id"] = study_id
+        captured["action"] = action
+        captured["token"] = token
+        return {"ok": True}
+
+    monkeypatch.setattr(prolific_api, "_update_study_status", fake_update)
+    out = prolific_api.start_study("study-123", "TOKEN")
+
+    assert out == {"ok": True}
+    assert captured["study_id"] == "study-123"
+    assert captured["action"] == "RESUME"
+    assert captured["token"] == "TOKEN"
+
+
 def test_setup_study_uses_new_prolific_schema(monkeypatch):
     captured = {}
 
