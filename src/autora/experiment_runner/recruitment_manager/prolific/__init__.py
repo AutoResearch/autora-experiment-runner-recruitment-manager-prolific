@@ -6,8 +6,27 @@ from typing import Any, List
 import requests
 import json
 
-RETRIES = 20
-REQUEST_TIMEOUT_SECONDS = 20
+RETRIES = 5
+REQUEST_TIMEOUT_SECONDS = (5, 20)
+"""``(connect_timeout, read_timeout)`` in seconds. Tuple form is necessary
+on macOS / corporate networks where a single ``timeout=20`` does not
+reliably bound the underlying ``socket.readinto`` (urllib3 will sit in a
+blocking read forever on a stalled keep-alive connection). The tuple
+sets both an OS connect timeout and a per-byte read timeout.
+"""
+
+RETRY_SLEEP_SECONDS = 5
+"""Backoff between retries. Worst-case stall per call is roughly
+``RETRIES * (REQUEST_TIMEOUT_SECONDS[1] + RETRY_SLEEP_SECONDS)`` —
+with the defaults above ~ 5 * (20 + 5) = 125 s, vs. the previous
+~13 minutes (20 * 40 s)."""
+
+PAGINATION_MAX_PAGES = 200
+"""Hard ceiling for ``__get_request_results_id`` so a malformed
+``_links.next.href`` (Prolific occasionally returns the same URL again
+or a non-null href on the last page) cannot trap us in an infinite
+fetch loop."""
+
 DEFAULT_COUNTRY_FILTER_ID = "current-country-of-residence"
 DEFAULT_COUNTRY_US_VALUE = "1"
 
@@ -19,28 +38,35 @@ def _log(message: str):
 
 def __save_get(url, headers):
     tries = 0
+    response = None
     while tries < RETRIES:
         tries += 1
+        _log(f"GET {url} (try {tries}/{RETRIES})")
         try:
             response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
         except requests.RequestException as exc:
-            print(
-                f"Warning in geting from prolific: request error ({exc}). "
-                f"Retry: {tries}/{RETRIES}"
+            _log(
+                f"GET {url} failed ({type(exc).__name__}: {exc}); "
+                f"retry in {RETRY_SLEEP_SECONDS}s"
             )
-            time.sleep(20)
+            time.sleep(RETRY_SLEEP_SECONDS)
             continue
         if response.status_code < 400:
             return response.json()
-        print(f'Warning in geting from prolific: {response.status_code}. Retry: {tries}/{RETRIES}')
-        time.sleep(20)
-    raise Exception(f'Error in geting from prolific: {response.status_code}')
+        _log(
+            f"GET {url} -> {response.status_code}; retry in {RETRY_SLEEP_SECONDS}s"
+        )
+        time.sleep(RETRY_SLEEP_SECONDS)
+    status = response.status_code if response is not None else "no response"
+    raise Exception(f'Error in getting from prolific: {status} (after {RETRIES} tries) {url}')
 
 
 def __save_post(url, headers, _json):
     tries = 0
+    response = None
     while tries < RETRIES:
         tries += 1
+        _log(f"POST {url} (try {tries}/{RETRIES})")
         try:
             response = requests.post(
                 url,
@@ -49,27 +75,30 @@ def __save_post(url, headers, _json):
                 timeout=REQUEST_TIMEOUT_SECONDS,
             )
         except requests.RequestException as exc:
-            print(
-                f"Warning in posting to prolific: request error ({exc}). "
-                f"Retry: {tries}/{RETRIES}"
+            _log(
+                f"POST {url} failed ({type(exc).__name__}: {exc}); "
+                f"retry in {RETRY_SLEEP_SECONDS}s"
             )
-            time.sleep(20)
+            time.sleep(RETRY_SLEEP_SECONDS)
             continue
         if response.status_code < 400:
             return response.json()
-        detail = (response.text or "")[:2000]
-        print(
-            f"Warning in posting to prolific: {response.status_code}. "
-            f"{detail} Retry: {tries}/{RETRIES}"
+        detail = (response.text or "")[:500]
+        _log(
+            f"POST {url} -> {response.status_code} ({detail}); "
+            f"retry in {RETRY_SLEEP_SECONDS}s"
         )
-        time.sleep(20)
-    raise Exception(f"Error in posting to prolific: {response.status_code}")
+        time.sleep(RETRY_SLEEP_SECONDS)
+    status = response.status_code if response is not None else "no response"
+    raise Exception(f"Error in posting to prolific: {status} (after {RETRIES} tries) {url}")
 
 
 def __save_patch(url, headers, _json):
     tries = 0
+    response = None
     while tries < RETRIES:
         tries += 1
+        _log(f"PATCH {url} (try {tries}/{RETRIES})")
         try:
             response = requests.patch(
                 url,
@@ -78,47 +107,84 @@ def __save_patch(url, headers, _json):
                 timeout=REQUEST_TIMEOUT_SECONDS,
             )
         except requests.RequestException as exc:
-            print(
-                f"Warning in patching to prolific: request error ({exc}). "
-                f"Retry: {tries}/{RETRIES}"
+            _log(
+                f"PATCH {url} failed ({type(exc).__name__}: {exc}); "
+                f"retry in {RETRY_SLEEP_SECONDS}s"
             )
-            time.sleep(20)
+            time.sleep(RETRY_SLEEP_SECONDS)
             continue
         if response.status_code < 400:
             return response.json()
-        print(f'Warning in patching to prolific: {response.status_code}. Retry: {tries}/{RETRIES}')
-        time.sleep(20)
-    raise Exception(f'Error in patching to prolific: {response.status_code}')
+        _log(
+            f"PATCH {url} -> {response.status_code}; retry in {RETRY_SLEEP_SECONDS}s"
+        )
+        time.sleep(RETRY_SLEEP_SECONDS)
+    status = response.status_code if response is not None else "no response"
+    raise Exception(f'Error in patching to prolific: {status} (after {RETRIES} tries) {url}')
 
 
 def __get_request_results(url, headers):
     all_submissions = []
+    pages = 0
     while True:
+        pages += 1
+        if pages > PAGINATION_MAX_PAGES:
+            raise Exception(
+                f"Pagination ceiling reached ({PAGINATION_MAX_PAGES} pages) "
+                f"for {url}; suspect malformed `next_page` from Prolific."
+            )
         data = __save_get(url, headers)
         if "results" in data:
             all_submissions.extend(data["results"])
 
         next_page = data.get("next_page")
-        if next_page:
-            url = next_page
-        else:
+        if not next_page or next_page == url:
             break
+        url = next_page
     return all_submissions
 
 
 def __get_request_results_id(url, headers):
-    page = 1  # Start with the first page
-    results_per_page = 50  # Specify the number of results per page
+    """Walk Prolific's HAL-style ``_links.next.href`` pagination.
 
-    # Concatenate all submissions
-    all_submissions = []
+    Prolific's submissions endpoint occasionally returns a non-null
+    ``_links.next.href`` even on the final page (or returns the same href
+    as the page we just fetched), which makes the upstream
+    "while True: url = data['_links']['next']['href']" loop run forever
+    in a blocking ``socket.readinto`` once the response stalls. We:
 
+    * accept a missing ``_links`` / ``next`` / ``href`` (treat as terminal),
+    * treat a non-string href (None, 0, etc.) as terminal,
+    * break when the next href equals the current url (Prolific bug),
+    * cap the loop at ``PAGINATION_MAX_PAGES`` so we error out loudly
+      instead of hanging silently.
+    """
+    all_submissions: list = []
+    pages = 0
+    seen_urls: set = set()
     while True:
-        data = __save_get(url, headers)
-        url = data['_links']['next']['href']
-        all_submissions.extend(data.get("results", []))
-        if url is None:
+        pages += 1
+        if pages > PAGINATION_MAX_PAGES:
+            raise Exception(
+                f"Pagination ceiling reached ({PAGINATION_MAX_PAGES} pages) "
+                f"for {url}; suspect malformed `_links.next.href` from Prolific."
+            )
+        if url in seen_urls:
+            _log(
+                f"Pagination cycle detected at {url}; breaking to avoid "
+                "infinite fetch."
+            )
             break
+        seen_urls.add(url)
+        data = __save_get(url, headers)
+        all_submissions.extend(data.get("results", []))
+        next_url = (
+            (data.get("_links") or {}).get("next", {}).get("href")
+            if isinstance(data, dict) else None
+        )
+        if not isinstance(next_url, str) or not next_url or next_url == url:
+            break
+        url = next_url
 
     return all_submissions
 
