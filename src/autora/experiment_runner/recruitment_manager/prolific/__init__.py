@@ -208,13 +208,35 @@ def _studies_from_name(study_name: str, prolific_token: str):
     return [{'id': s['id'], 'status': s['status']} for s in lst if s['name'] == study_name]
 
 
+_BLOCKING_STUDY_STATUSES: frozenset = frozenset({'ACTIVE', 'STARTED', 'UNPUBLISHED'})
+"""Study statuses that would actively conflict with publishing a new
+same-named study.
+
+* ``ACTIVE`` / ``STARTED``: currently recruiting participants.
+* ``UNPUBLISHED``: draft that could be published at any moment by the
+  researcher and would then race the new study.
+
+Statuses NOT in this set (``PAUSED``, ``AWAITING REVIEW``, ``COMPLETED``)
+are treated as non-blocking. The previous predicate was
+``status != 'COMPLETED'``, which trapped the runner on a PAUSED study
+forever: Prolific only auto-transitions a study to ``COMPLETED`` when
+every available place is filled with a settled submission, so a
+manually-stopped (PAUSED) study — especially one with 0 participants —
+can never reach ``COMPLETED`` no matter how many times
+``_approve_study_incompleted_submissions`` runs. The 10-cycle "Waiting
+for previous study to complete/close" loop in ``setup_study`` would
+then exhaust and raise.
+"""
+
+
 def _is_study_uncompleted(study_name: str, prolific_token: str):
     """
-    Returns true if there is alread a study with the name that is not completed
+    Returns True if there is a study with the given name that is
+    currently in a state which would conflict with publishing a new
+    same-named study (see :data:`_BLOCKING_STUDY_STATUSES`).
     """
     lst = _studies_from_name(study_name, prolific_token)
-    incomplete_lst = [s for s in lst if s['status'] != 'COMPLETED']
-    return len(incomplete_lst) > 0
+    return any(s['status'] in _BLOCKING_STUDY_STATUSES for s in lst)
 
 
 def _approve_study_incompleted_submissions(study_name: str, prolific_token: str):
