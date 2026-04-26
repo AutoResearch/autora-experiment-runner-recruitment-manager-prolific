@@ -80,9 +80,12 @@ def test_setup_study_uses_new_prolific_schema(monkeypatch):
         # ACTIVE / STARTED: actively recruiting -> blocking.
         ([{"id": "s1", "name": "autora", "status": "ACTIVE"}], True),
         ([{"id": "s1", "name": "autora", "status": "STARTED"}], True),
-        # UNPUBLISHED draft could be published at any moment by the
-        # researcher and would race the new study -> blocking.
-        ([{"id": "s1", "name": "autora", "status": "UNPUBLISHED"}], True),
+        # UNPUBLISHED: a draft is not recruiting -> non-blocking. Critically,
+        # orphaned drafts left over from a previous failed run (e.g. one
+        # whose PUBLISH transition 400'd because the token's scope didn't
+        # match the study's project, and which the current token can't
+        # even DELETE) would otherwise block every subsequent run forever.
+        ([{"id": "s1", "name": "autora", "status": "UNPUBLISHED"}], False),
         # Mix: a finished study + a paused one + nothing recruiting -> non-blocking.
         (
             [

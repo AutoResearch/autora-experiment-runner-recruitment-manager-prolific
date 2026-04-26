@@ -208,24 +208,33 @@ def _studies_from_name(study_name: str, prolific_token: str):
     return [{'id': s['id'], 'status': s['status']} for s in lst if s['name'] == study_name]
 
 
-_BLOCKING_STUDY_STATUSES: frozenset = frozenset({'ACTIVE', 'STARTED', 'UNPUBLISHED'})
+_BLOCKING_STUDY_STATUSES: frozenset = frozenset({'ACTIVE', 'STARTED'})
 """Study statuses that would actively conflict with publishing a new
 same-named study.
 
-* ``ACTIVE`` / ``STARTED``: currently recruiting participants.
-* ``UNPUBLISHED``: draft that could be published at any moment by the
-  researcher and would then race the new study.
+Only the **actively-recruiting** states block: ``ACTIVE`` / ``STARTED``.
+Two studies in either of those states with the same name would
+genuinely race each other for participants on Prolific.
 
-Statuses NOT in this set (``PAUSED``, ``AWAITING REVIEW``, ``COMPLETED``)
-are treated as non-blocking. The previous predicate was
-``status != 'COMPLETED'``, which trapped the runner on a PAUSED study
-forever: Prolific only auto-transitions a study to ``COMPLETED`` when
-every available place is filled with a settled submission, so a
-manually-stopped (PAUSED) study — especially one with 0 participants —
-can never reach ``COMPLETED`` no matter how many times
-``_approve_study_incompleted_submissions`` runs. The 10-cycle "Waiting
-for previous study to complete/close" loop in ``setup_study`` would
-then exhaust and raise.
+Everything else is non-blocking, including:
+
+* ``UNPUBLISHED`` — a draft is not recruiting and does not conflict
+  with anything. Crucially, an orphaned draft created by a previous
+  failed run (e.g. one whose PUBLISH transition 400'd because the
+  token's scope didn't match the study's project, or one created
+  outside the current token's reach so the API can't even DELETE it)
+  would otherwise block every subsequent run forever. Drafts are
+  recoverable cruft, not real conflicts.
+* ``PAUSED`` — manually stopped via the dashboard; not recruiting.
+  Prolific never auto-transitions a PAUSED study back to COMPLETED
+  unless all places are filled with settled submissions, so the prior
+  ``status != 'COMPLETED'`` predicate trapped the runner here too.
+* ``AWAITING REVIEW`` — all places filled, no longer recruiting; the
+  researcher just hasn't approved/rejected the final batch yet.
+* ``COMPLETED`` — settled (the historic happy path).
+
+The runner creates its own UNPUBLISHED draft anyway and publishes it
+immediately, so a same-named draft in the workspace is harmless.
 """
 
 
