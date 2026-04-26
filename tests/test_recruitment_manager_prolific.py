@@ -31,8 +31,8 @@ def test_setup_study_uses_new_prolific_schema(monkeypatch):
         return {"id": "study-123", "maximum_allowed_time": 45}
 
     monkeypatch.setattr(prolific_api, "__save_post", fake_post)
-    monkeypatch.setattr(prolific_api, "_is_study_uncompleted", lambda *_: False)
-    monkeypatch.setattr(prolific_api, "_list_studies", lambda *_: [])
+    monkeypatch.setattr(prolific_api, "_is_study_uncompleted", lambda *_, **__: False)
+    monkeypatch.setattr(prolific_api, "_list_studies", lambda *_, **__: [])
 
     out = prolific_api.setup_study(
         name="autora-test",
@@ -118,7 +118,7 @@ def test_is_study_uncompleted_only_blocks_on_active_or_draft(monkeypatch, studie
     PAUSED, never COMPLETED) and tried to launch a new run with the
     same name.
     """
-    monkeypatch.setattr(prolific_api, "_list_studies", lambda *_: studies)
+    monkeypatch.setattr(prolific_api, "_list_studies", lambda *_, **__: studies)
     assert prolific_api._is_study_uncompleted("autora", "TOKEN") is expected_blocked
 
 
@@ -139,8 +139,8 @@ def test_setup_study_forwards_project_id_when_provided(monkeypatch):
         return {"id": "study-pid", "maximum_allowed_time": 45}
 
     monkeypatch.setattr(prolific_api, "__save_post", fake_post)
-    monkeypatch.setattr(prolific_api, "_is_study_uncompleted", lambda *_: False)
-    monkeypatch.setattr(prolific_api, "_list_studies", lambda *_: [])
+    monkeypatch.setattr(prolific_api, "_is_study_uncompleted", lambda *_, **__: False)
+    monkeypatch.setattr(prolific_api, "_list_studies", lambda *_, **__: [])
 
     out = prolific_api.setup_study(
         name="autora-test",
@@ -170,8 +170,8 @@ def test_setup_study_omits_project_id_when_unset(monkeypatch):
         return {"id": "study-noproj", "maximum_allowed_time": 30}
 
     monkeypatch.setattr(prolific_api, "__save_post", fake_post)
-    monkeypatch.setattr(prolific_api, "_is_study_uncompleted", lambda *_: False)
-    monkeypatch.setattr(prolific_api, "_list_studies", lambda *_: [])
+    monkeypatch.setattr(prolific_api, "_is_study_uncompleted", lambda *_, **__: False)
+    monkeypatch.setattr(prolific_api, "_list_studies", lambda *_, **__: [])
 
     prolific_api.setup_study(
         name="autora-test",
@@ -185,3 +185,58 @@ def test_setup_study_omits_project_id_when_unset(monkeypatch):
     )
 
     assert "project_id" not in captured["json"]
+
+
+def test_list_studies_uses_project_scoped_endpoint_when_project_id_given(monkeypatch):
+    """``_list_studies(project_id=...)`` must hit
+    ``/api/v1/projects/<id>/studies/`` instead of the unscoped
+    ``/api/v1/studies/`` endpoint. The unscoped one routinely times out
+    on lab tokens (which see ~25 workspaces and thousands of studies);
+    scoping to the project the runner is actually publishing into
+    reduces the page size to well-under-a-second.
+    """
+    captured = {}
+
+    def fake_paginate(url, headers):
+        captured["url"] = url
+        return [{"id": "s", "name": "autora", "status": "COMPLETED"}]
+
+    monkeypatch.setattr(prolific_api, "__get_request_results_id", fake_paginate)
+
+    out = prolific_api._list_studies("TOKEN", project_id="PROJ123")
+    assert "/api/v1/projects/PROJ123/studies/" in captured["url"], captured["url"]
+    assert out and out[0]["name"] == "autora"
+
+
+def test_list_studies_falls_back_to_unscoped_endpoint_when_no_project_id(monkeypatch):
+    """Default behaviour (no ``project_id``) must still use the unscoped
+    ``/api/v1/studies/`` endpoint, so single-workspace tokens that don't
+    pass ``project_id`` keep working unchanged.
+    """
+    captured = {}
+
+    def fake_paginate(url, headers):
+        captured["url"] = url
+        return []
+
+    monkeypatch.setattr(prolific_api, "__get_request_results_id", fake_paginate)
+
+    prolific_api._list_studies("TOKEN")
+    assert captured["url"].endswith("/api/v1/studies/"), captured["url"]
+
+
+def test_is_study_uncompleted_forwards_project_id_to_list_studies(monkeypatch):
+    """``_is_study_uncompleted(project_id=...)`` must thread the
+    ``project_id`` through ``_studies_from_name`` -> ``_list_studies``
+    so the same-name lookup is project-scoped (avoids the lab-token
+    listing timeout).
+    """
+    captured = {}
+
+    def fake_list(token, project_id=None):
+        captured["project_id"] = project_id
+        return []  # empty -> non-blocking
+
+    monkeypatch.setattr(prolific_api, "_list_studies", fake_list)
+    prolific_api._is_study_uncompleted("autora", "TOKEN", project_id="PROJ123")
+    assert captured["project_id"] == "PROJ123"

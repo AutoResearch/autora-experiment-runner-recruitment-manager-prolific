@@ -189,22 +189,39 @@ def __get_request_results_id(url, headers):
     return all_submissions
 
 
-def _list_studies(prolific_token: str):
+def _list_studies(prolific_token: str, project_id: str | None = None):
     """
-    Returns list of all studies on Prolific account.
+    Returns list of studies visible to the token.
+
+    When ``project_id`` is set the listing is scoped server-side to
+    ``/api/v1/projects/<project_id>/studies/``. This is **necessary**
+    on shared lab accounts: the unscoped ``/api/v1/studies/`` endpoint
+    can return thousands of studies across dozens of workspaces and
+    routinely times out (read timeout 20s; observed empirically with a
+    lab token that sees ~25 workspaces). Scoping to the project the
+    runner is actually publishing into reduces the page size to just
+    that project's studies and returns in well under a second.
     """
+    base = (
+        f"https://api.prolific.com/api/v1/projects/{project_id}/studies/"
+        if project_id
+        else "https://api.prolific.com/api/v1/studies/"
+    )
     studies = __get_request_results_id(
-        "https://api.prolific.com/api/v1/studies/",
+        base,
         {"Authorization": f"Token {prolific_token}"},
     )
     return studies
 
 
-def _studies_from_name(study_name: str, prolific_token: str):
+def _studies_from_name(study_name: str, prolific_token: str, project_id: str | None = None):
     """
-    Returns the ids and status of studies with a given the name.
+    Returns the ids and status of studies with a given name.
+
+    ``project_id`` is forwarded to :func:`_list_studies` to scope the
+    listing server-side (avoids timeouts on lab-wide tokens).
     """
-    lst = _list_studies(prolific_token)
+    lst = _list_studies(prolific_token, project_id=project_id)
     return [{'id': s['id'], 'status': s['status']} for s in lst if s['name'] == study_name]
 
 
@@ -238,21 +255,28 @@ immediately, so a same-named draft in the workspace is harmless.
 """
 
 
-def _is_study_uncompleted(study_name: str, prolific_token: str):
+def _is_study_uncompleted(study_name: str, prolific_token: str, project_id: str | None = None):
     """
     Returns True if there is a study with the given name that is
     currently in a state which would conflict with publishing a new
     same-named study (see :data:`_BLOCKING_STUDY_STATUSES`).
+
+    ``project_id`` scopes the same-name lookup to a single Prolific
+    project. Forwarded to :func:`_studies_from_name` ->
+    :func:`_list_studies`.
     """
-    lst = _studies_from_name(study_name, prolific_token)
+    lst = _studies_from_name(study_name, prolific_token, project_id=project_id)
     return any(s['status'] in _BLOCKING_STUDY_STATUSES for s in lst)
 
 
-def _approve_study_incompleted_submissions(study_name: str, prolific_token: str):
+def _approve_study_incompleted_submissions(study_name: str, prolific_token: str, project_id: str | None = None):
     """
-    Returns a list of incompleted submissions
+    Returns a list of incompleted submissions.
+
+    ``project_id`` scopes the same-name lookup so this stays fast on
+    lab-wide tokens.
     """
-    lst = _studies_from_name(study_name, prolific_token)
+    lst = _studies_from_name(study_name, prolific_token, project_id=project_id)
     incomplete_lst = [s for s in lst if s['status'] != 'COMPLETED']
     submissions = []
     for s in incomplete_lst:
@@ -487,23 +511,23 @@ def setup_study(
         exclude_studies = [name]
     if check_prev:
         _log("Checking for existing uncompleted studies with same name")
-        if _is_study_uncompleted(name, prolific_token):
+        if _is_study_uncompleted(name, prolific_token, project_id=project_id):
             still_uncomplete = True
             for i in range(10):
                 _log(
                     f"Waiting for previous '{name}' study to complete/close ({i + 1}/10)"
                 )
                 time.sleep(30)
-                still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token)
+                still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token, project_id=project_id)
                 if still_uncomplete:
-                    _approve_study_incompleted_submissions(name, prolific_token)
-                still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token)
+                    _approve_study_incompleted_submissions(name, prolific_token, project_id=project_id)
+                still_uncomplete = still_uncomplete and _is_study_uncompleted(name, prolific_token, project_id=project_id)
                 if not still_uncomplete:
                     break
             if still_uncomplete:
                 _log('ERROR: There is a study with this name that is not completed. Can not proceed.')
                 return
-        previous_studies = _list_studies(prolific_token)
+        previous_studies = _list_studies(prolific_token, project_id=project_id)
         excludes = [
             {"name": s["name"], "id": s["id"]}
             for s in previous_studies
