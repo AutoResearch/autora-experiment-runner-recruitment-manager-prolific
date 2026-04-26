@@ -155,12 +155,16 @@ def test_setup_study_forwards_project_id_when_provided(monkeypatch):
     )
 
     assert out["id"] == "study-pid"
-    assert captured["json"]["project_id"] == "69e23f0d06df2b74aee4eff3"
+    # Field name is ``project`` (singular), NOT ``project_id``. Prolific's
+    # create-study endpoint silently ignores ``project_id`` and routes to
+    # the token's default workspace — verified empirically.
+    assert captured["json"]["project"] == "69e23f0d06df2b74aee4eff3"
+    assert "project_id" not in captured["json"]
 
 
-def test_setup_study_omits_project_id_when_unset(monkeypatch):
-    """Default behaviour (no project_id passed) must not put a stray
-    ``project_id`` key in the payload — single-workspace setups should be
+def test_setup_study_omits_project_when_unset(monkeypatch):
+    """Default behaviour (no ``project_id`` passed) must not put a stray
+    ``project`` key in the payload — single-workspace setups should be
     completely unaffected by the new opt-in field.
     """
     captured = {}
@@ -184,6 +188,7 @@ def test_setup_study_omits_project_id_when_unset(monkeypatch):
         check_prev=True,
     )
 
+    assert "project" not in captured["json"]
     assert "project_id" not in captured["json"]
 
 

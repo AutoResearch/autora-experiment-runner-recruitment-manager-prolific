@@ -613,8 +613,17 @@ def setup_study(
     if project_id:
         # Pin the new study into the requested project so a project-scoped
         # token can publish it. Without this, lab tokens land studies in
-        # an orphan workspace and the subsequent PUBLISH transition 400s.
-        _json["project_id"] = str(project_id)
+        # the token's *default* workspace (and that workspace's wallet is
+        # what Prolific then tries to bill, which on shared lab accounts is
+        # often empty).
+        #
+        # IMPORTANT: the payload field name is ``project`` (singular,
+        # matches the read-back field name), NOT ``project_id``. Prolific
+        # silently ignores ``project_id`` on the create-study endpoint
+        # and routes to the token's default — verified empirically by
+        # POSTing the same payload with both keys and reading back the
+        # resulting ``workspace`` / ``project`` fields.
+        _json["project"] = str(project_id)
 
     data = __save_post(
         "https://api.prolific.com/api/v1/studies/",
