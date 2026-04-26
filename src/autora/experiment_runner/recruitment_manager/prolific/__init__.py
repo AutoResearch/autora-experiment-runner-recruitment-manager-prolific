@@ -426,6 +426,7 @@ def setup_study(
         peripheral_requirements=None,
         temp_file='',
         check_prev=True,
+        project_id: str | None = None,
 
 ) -> Any:
     """
@@ -452,6 +453,17 @@ def setup_study(
         peripheral_requirements (list[PeripheralOptions], optional):
             Allows specifying additional requirements. Defaults to [] (no other requirements).
         temp_file (str, optional): File to save the study_id and max_allowed_time for restarting later
+        project_id (str, optional): Prolific project ID to create the study in.
+            REQUIRED for tokens whose effective scope is project-level (typical
+            for shared lab accounts): without it, the study is created in
+            whatever Prolific picks as the token's default location, and
+            tokens that are scoped to a specific project will be unable to
+            publish or transition the resulting study (Prolific returns
+            ``error_code 140007`` "A Researcher is not allowed to publish a
+            UNPUBLISHED study"). When set, the project_id is forwarded as
+            ``project_id`` in the create-study POST payload, pinning the new
+            study into that project and avoiding the orphan-state failure.
+            Defaults to None (Prolific picks the token's default).
 
     Returns:
         dictionary: A dictionary with the id and maximum allowed time for the study (or False if something went wrong)
@@ -565,6 +577,11 @@ def setup_study(
             }
         ],
     }
+    if project_id:
+        # Pin the new study into the requested project so a project-scoped
+        # token can publish it. Without this, lab tokens land studies in
+        # an orphan workspace and the subsequent PUBLISH transition 400s.
+        _json["project_id"] = str(project_id)
 
     data = __save_post(
         "https://api.prolific.com/api/v1/studies/",

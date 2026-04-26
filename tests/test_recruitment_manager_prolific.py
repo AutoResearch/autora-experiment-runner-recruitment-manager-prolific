@@ -117,3 +117,68 @@ def test_is_study_uncompleted_only_blocks_on_active_or_draft(monkeypatch, studie
     """
     monkeypatch.setattr(prolific_api, "_list_studies", lambda *_: studies)
     assert prolific_api._is_study_uncompleted("autora", "TOKEN") is expected_blocked
+
+
+def test_setup_study_forwards_project_id_when_provided(monkeypatch):
+    """``setup_study(project_id=...)`` must include ``project_id`` in the
+    create-study POST payload so Prolific routes the new study into the
+    requested project. Without this, a project-scoped token (typical for
+    lab accounts) lands its newly-created study in an orphan workspace
+    and the runner can't publish it (Prolific returns
+    ``error_code 140007`` "A Researcher is not allowed to publish a
+    UNPUBLISHED study").
+    """
+    captured = {}
+
+    def fake_post(url, headers, _json):
+        captured["url"] = url
+        captured["json"] = _json
+        return {"id": "study-pid", "maximum_allowed_time": 45}
+
+    monkeypatch.setattr(prolific_api, "__save_post", fake_post)
+    monkeypatch.setattr(prolific_api, "_is_study_uncompleted", lambda *_: False)
+    monkeypatch.setattr(prolific_api, "_list_studies", lambda *_: [])
+
+    out = prolific_api.setup_study(
+        name="autora-test",
+        description="smoke",
+        external_study_url="https://example.org/task",
+        estimated_completion_time=3,
+        prolific_token="TOKEN",
+        total_available_places=2,
+        completion_code="ABC123",
+        check_prev=True,
+        project_id="69e23f0d06df2b74aee4eff3",
+    )
+
+    assert out["id"] == "study-pid"
+    assert captured["json"]["project_id"] == "69e23f0d06df2b74aee4eff3"
+
+
+def test_setup_study_omits_project_id_when_unset(monkeypatch):
+    """Default behaviour (no project_id passed) must not put a stray
+    ``project_id`` key in the payload — single-workspace setups should be
+    completely unaffected by the new opt-in field.
+    """
+    captured = {}
+
+    def fake_post(url, headers, _json):
+        captured["json"] = _json
+        return {"id": "study-noproj", "maximum_allowed_time": 30}
+
+    monkeypatch.setattr(prolific_api, "__save_post", fake_post)
+    monkeypatch.setattr(prolific_api, "_is_study_uncompleted", lambda *_: False)
+    monkeypatch.setattr(prolific_api, "_list_studies", lambda *_: [])
+
+    prolific_api.setup_study(
+        name="autora-test",
+        description="smoke",
+        external_study_url="https://example.org/task",
+        estimated_completion_time=3,
+        prolific_token="TOKEN",
+        total_available_places=2,
+        completion_code="ABC123",
+        check_prev=True,
+    )
+
+    assert "project_id" not in captured["json"]
