@@ -244,7 +244,7 @@ def _get_study_submissions(study_id: str, prolific_token: str) -> dict:
         study['_links']['related']['href'],
         {"Authorization": f"Token {prolific_token}"},
     )
-    return submissions
+    return _dedup_submissions(submissions)
 
 
 def _get_submissions_type(study_id: str, prolific_token: str, type: str) -> list:
@@ -266,10 +266,28 @@ def get_submissions_incompleted(study_id: str, prolific_token: str):
 
 
 def _get_submissions_no_code_not_returned(study_id: str, prolific_token: str):
+    """Submissions a researcher needs to triage manually.
+
+    A "no-code" submission is one Prolific recorded as ``study_code ==
+    'NOCODE'`` (the participant never hit the completion-code redirect).
+    The previous filter was too loose — it accepted any submission that
+    was not yet RETURNED, which includes ACTIVE / RESERVED participants
+    who simply have not entered a code yet because they're still doing
+    the task. Calling ``approve_all_no_code`` or ``request_return_all``
+    on those would either auto-approve a still-running participant
+    (firing the "study finished" check in firebase_prolific and ending
+    the round prematurely) or yank them out mid-task.
+
+    The fix gates on ``is_complete`` *and* ``status == 'AWAITING REVIEW'``
+    — together those guarantee Prolific has actually received a
+    submission for this participant, and only the missing completion
+    code stands between them and review.
+    """
     submissions = _get_study_submissions(study_id, prolific_token)
     return [s['id'] for s in submissions
             if s['study_code'] == 'NOCODE'
-            and s['status'] != 'RETURNED'
+            and s['is_complete']
+            and s['status'] == 'AWAITING REVIEW'
             and not s['return_requested']]
 
 
@@ -594,7 +612,34 @@ def _get_submissions(study_id: str, prolific_token: str):
     study = __get_request_results_id(
         f"https://api.prolific.com/api/v1/studies/{study_id}/submissions/",
         {"Authorization": f"Token {prolific_token}"})
-    return study
+    return _dedup_submissions(study)
+
+
+def _dedup_submissions(submissions):
+    """Collapse duplicate submission rows by ``id``, keep first occurrence.
+
+    Defensive: Prolific's HAL pagination occasionally re-emits the same
+    submission across page boundaries (we already break the page-loop
+    when we see a duplicate ``next.href``, but the *contents* of two
+    distinct pages can still overlap). Without this, ``check_prolific_status``
+    can over-count ``number_of_submissions_finished`` (= APPROVED +
+    AWAITING REVIEW) and trip the
+    ``number_of_submissions_finished >= total_available_places`` early
+    termination in ``firebase_prolific`` while real participants are
+    still active.
+    """
+    seen: set = set()
+    out: list = []
+    for s in submissions or []:
+        sid = s.get("id") if isinstance(s, dict) else None
+        if sid is None or sid in seen:
+            if sid is not None:
+                continue
+            out.append(s)  # malformed row, keep as-is so callers can see it
+            continue
+        seen.add(sid)
+        out.append(s)
+    return out
 
 
 def _get_participants_by_status(study_id: str, prolific_token: str, status: str):
